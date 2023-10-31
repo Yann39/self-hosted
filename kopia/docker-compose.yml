@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+
+  kopia:
+    image: kopia/kopia:latest
+    hostname: Hostname
+    container_name: kopia
+    restart: unless-stopped
+    # set up the server that provides the web gui
+    command:
+      - server
+      - start
+      - --disable-csrf-token-checks
+      - --insecure
+      - --address=0.0.0.0:51515
+      - --server-username=USERNAME
+      - --server-password=SECRET_PASSWORD
+    environment:
+      # set repository password
+      KOPIA_PASSWORD: "SECRET"
+      USER: "User"
+    volumes:
+      # local folders needed by kopia
+      - /path/to/config/dir:/app/config
+      - /path/to/cache/dir:/app/cache
+      - /path/to/logs/dir:/app/logs
+      # local folders to snapshot
+      - /path/to/data/dir:/data:ro
+      # repository location
+      - /path/to/repository/dir:/repository
+      # path for browsing mounted snaphots
+      - /path/to/tmp/dir:/tmp:shared
+    networks:
+      - kopia-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kopia.rule=Host(`kopia.example.com`)"
+      - "traefik.http.routers.kopia.entrypoints=websecure"
+      - "traefik.http.routers.kopia.tls.certresolver=default"
+      - "traefik.http.services.kopia.loadbalancer.server.port=51515"
+      - "traefik.docker.network=traefik-net"
+
+networks:
+
+  kopia-net:
+    name: kopia-net
+
+  traefik-net:
+    name: traefik-net
+    external: true

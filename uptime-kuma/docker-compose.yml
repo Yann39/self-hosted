@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    volumes:
+      - uptime-kuma:/app/data
+    restart: unless-stopped
+    networks:
+      - uptime-kuma-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptime-kuma.rule=Host(`uptime-kuma.example.com`)"
+      - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
+      - "traefik.http.routers.uptime-kuma.tls.certresolver=default"
+      - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
+      - "traefik.docker.network=traefik-net"
+
+volumes:
+
+  uptime-kuma:
+    name: uptime-kuma-vol
+
+networks:
+
+  uptime-kuma-net:
+    name: uptime-kuma-net
+
+  traefik-net:
+    name: traefik-net
+    external: true

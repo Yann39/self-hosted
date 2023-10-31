@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+
+  homer:
+    image: b4bz/homer:latest
+    container_name: homer
+    volumes:
+      - ./assets/:/www/assets
+    restart: unless-stopped
+    environment:
+      - INIT_ASSETS=0
+    networks:
+      - homer-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homer.rule=Host(`dashboard.example.com`)"
+      - "traefik.http.routers.homer.entrypoints=websecure"
+      - "traefik.http.routers.homer.tls.certresolver=default"
+      - "traefik.http.services.homer.loadbalancer.server.port=8080"
+      - "traefik.docker.network=traefik-net"
+
+networks:
+
+  homer-net:
+    name: homer-net
+
+  traefik-net:
+    name: traefik-net
+    external: true

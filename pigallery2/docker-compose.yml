@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+
+  pigallery2:
+    image: bpatrik/pigallery2:latest
+    container_name: pigallery2
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./data/config:/app/data/config
+      - ./data/db:/app/data/db
+      - ./home/yann/Pictures/pigallery2:/app/data/images:ro
+      - ./data/tmp:/app/data/tmp
+    restart: unless-stopped
+    networks:
+      - pigallery2-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pigallery2.rule=Host(`pigallery2.example.com`)"
+      - "traefik.http.routers.pigallery2.entrypoints=websecure"
+      - "traefik.http.routers.pigallery2.tls.certresolver=default"
+      - "traefik.http.services.pigallery2.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+
+volumes:
+
+  pigallery2-vol:
+    name: pigallery2-vol
+
+networks:
+
+  pigallery2-net:
+    name: pigallery2-net
+
+  traefik-net:
+    name: traefik-net
+    external: true

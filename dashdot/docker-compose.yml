@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+
+  dashdot:
+    image: mauricenino/dashdot:latest
+    container_name: dashdot
+    restart: unless-stopped
+    volumes:
+      - /:/mnt/host:ro
+    networks:
+      - dashdot-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashdot.rule=Host(`dashdot.example.com`)"
+      - "traefik.http.routers.dashdot.entrypoints=websecure"
+      - "traefik.http.routers.dashdot.tls.certresolver=default"
+      - "traefik.http.services.dashdot.loadbalancer.server.port=3001"
+      - "traefik.http.middlewares.vpn-whitelist.ipwhitelist.sourcerange=10.10.1.0/24"
+      - "traefik.http.routers.dashdot.middlewares=vpn-whitelist"
+      - "traefik.docker.network=traefik-net"
+
+networks:
+
+  dashdot-net:
+    name: dashdot-net
+
+  traefik-net:
+    name: traefik-net
+    external: true

@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+
+  lychee:
+    image: lycheeorg/lychee
+    container_name: lychee
+    volumes:
+      - ./lychee/conf:/conf
+      - ./lychee/uploads:/uploads
+      - ./lychee/sym:/sym
+      - ./lychee/logs:/logs
+    environment:
+      - PHP_TZ=UTC
+      - TIMEZONE=UTC
+      - DB_CONNECTION=mysql
+      - DB_HOST=lychee-db
+      - DB_PORT=3306
+      - DB_DATABASE=lychee
+      - DB_USERNAME=lychee
+      - DB_PASSWORD=password
+      - STARTUP_DELAY=30
+      - ADMIN_USER=admin
+      - ADMIN_PASSWORD=password
+    depends_on:
+      - lychee-db
+    restart: unless-stopped
+    networks:
+      - lychee-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lychee.rule=Host(`lychee.example.com`)"
+      - "traefik.http.routers.lychee.entrypoints=websecure"
+      - "traefik.http.routers.lychee.tls.certresolver=default"
+      - "traefik.http.services.lychee.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+
+  lychee-db:
+    container_name: lychee-db
+    image: arm64v8/mariadb:latest
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=lychee
+      - MYSQL_USER=lychee
+      - MYSQL_PASSWORD=password
+    volumes:
+      - lychee-db-vol:/var/lib/mysql
+    networks:
+      - lychee-net
+
+volumes:
+
+  lychee-db-vol:
+    name: lychee-db-vol
+
+networks:
+
+  lychee-net:
+    name: lychee-net
+
+  traefik-net:
+    name: traefik-net
+    external: true

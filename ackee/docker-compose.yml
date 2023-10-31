@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+
+  ackee-app:
+    image: electerious/ackee:latest
+    container_name: ackee-app
+    depends_on:
+      - ackee-mongo
+    restart: on-failure
+    env_file: ./.env
+    environment:
+      - WAIT_HOSTS=ackee-mongo:27017
+      - ACKEE_MONGODB=mongodb://ackee-mongo:27017/ackee
+    networks:
+      - ackee-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ackee.rule=Host(`ackee.example.com`)"
+      - "traefik.http.routers.ackee.entrypoints=websecure"
+      - "traefik.http.routers.ackee.tls.certresolver=default"
+      - "traefik.http.services.ackee.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.corsheaders.headers.accesscontrolallowmethods=GET, POST, PATCH, OPTIONS"
+      - "traefik.http.middlewares.corsheaders.headers.accesscontrolallowheaders=Content-Type, Authorization, Time-Zone"
+      - "traefik.http.middlewares.corsheaders.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.corsheaders.headers.accesscontrolalloworiginlist=https://quake.example.com"
+      - "traefik.http.middlewares.corsheaders.headers.accesscontrolmaxage=3600"
+      - "traefik.http.routers.ackee.middlewares=corsheaders"
+      - "traefik.docker.network=traefik-net"
+
+  ackee-mongo:
+    image: mongo
+    container_name: ackee-mongo
+    restart: unless-stopped
+    volumes:
+      - ./data:/data/db
+    networks:
+      - ackee-net
+
+networks:
+
+  ackee-net:
+    name: ackee-net
+
+  traefik-net:
+    name: traefik-net
+    external: true

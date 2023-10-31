@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+
+  nginx:
+    image: nginx:latest
+    container_name: defrag-life-nginx
+    volumes:
+      - ./data/:/var/www/html/
+      - ./default.conf:/etc/nginx/conf.d/default.conf
+    restart: unless-stopped
+    networks:
+      - defrag-life-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.defrag-life.rule=Host(`quake.example.com`)"
+      - "traefik.http.routers.defrag-life.entrypoints=websecure"
+      - "traefik.http.routers.defrag-life.tls.certresolver=default"
+      - "traefik.http.services.defrag-life.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+
+  php-fpm:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: defrag-life-php
+    networks:
+      - defrag-life-net
+    volumes:
+      - ./data/:/var/www/html/
+      - ./www.conf:/usr/local/etc/php-fpm.d/www.conf
+
+  mariadb:
+    image: arm64v8/mariadb:latest
+    container_name: defrag-life-db
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      - MARIADB_AUTO_UPGRADE="1"
+      - MARIADB_ROOT_PASSWORD=$MARIADB_ROOT_PASSWORD
+      - MARIADB_DATABASE=$MARIADB_DATABASE
+      - MARIADB_USER=$MARIADB_USER
+      - MARIADB_PASSWORD=$MARIADB_PASSWORD
+    volumes:
+      - defrag-life-db-vol:/var/lib/mysql
+    networks:
+      - defrag-life-net
+      - phpmyadmin-net
+
+volumes:
+
+  defrag-life-db-vol:
+    name: defrag-life-db-vol
+
+networks:
+
+  defrag-life-net:
+    name: defrag-life-net
+
+  traefik-net:
+    name: traefik-net
+    external: true
+
+  phpmyadmin-net:
+    name: phpmyadmin-net
+    external: true

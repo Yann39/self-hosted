@@ -1,0 +1,22 @@
+api:
+  dashboard: true
+
+entryPoints:
+  web:
+    address: ':80'
+
+  websecure:
+    address: ':443'
+
+providers:
+  docker:
+    watch: true
+    exposedByDefault: false
+
+certificatesResolvers:
+  default:
+    acme:
+      email: admin@example.com
+      storage: acme.json
+      caServer: 'https://acme-v02.api.letsencrypt.org/directory'
+      tlsChallenge: {}

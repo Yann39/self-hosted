@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  sablier:
+    image: acouvreur/sablier:1.4.1-beta.1-beta.11
+    container_name: sablier
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    command:
+      - start
+      - --provider.name=docker
+    networks:
+      - sablier-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sablier.rule=Host(`sablier.example.com`)"
+      - "traefik.http.routers.sablier.entrypoints=websecure"
+      - "traefik.http.routers.sablier.tls.certresolver=default"
+      - "traefik.http.services.sablier.loadbalancer.server.port=9000"
+      - "traefik.docker.network=traefik-net"
+
+volumes:
+  sablier-vol:
+    name: sablier-vol
+
+networks:
+  sablier-net:
+    name: sablier-net
+  traefik-net:
+    name: traefik-net
+    external: true

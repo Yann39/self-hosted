@@ -1,0 +1,49 @@
+version: "3.8"
+
+services:
+
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock       # So that Traefik can listen to the Docker events
+      - ./traefik.yml:/etc/traefik/config.yml           # Traefik configuration
+      - ./acme.json:/acme.json                          # For Let's Encrypt certificate storage
+      - ./credentials.txt:/credentials.txt:ro           # For Traefik dashboard credentials
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+
+      # Redirect all HTTP requests to HTTPS
+      - "traefik.http.middlewares.httpsonly.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.httpsonly.redirectscheme.permanent=true"
+      - "traefik.http.routers.httpsonly.rule=HostRegexp(`{any:.*}`)"
+      - "traefik.http.routers.httpsonly.middlewares=httpsonly"
+
+      # Configure dashboard with HTTPS
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.example.com`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.service=dashboard@internal"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=default"
+
+      # Configure API with HTTPS
+      - "traefik.http.routers.api.rule=Host(`traefik.example.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.service=api@internal"
+      - "traefik.http.routers.api.tls=true"
+      - "traefik.http.routers.api.tls.certresolver=default"
+
+      # Secure dashboard/API with authentication
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.routers.api.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.usersfile=/credentials.txt"
+
+networks:
+
+  traefik-net:
+    name: traefik-net

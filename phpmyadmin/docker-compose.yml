@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+
+  phpmyadmin:
+    image: arm64v8/phpmyadmin:latest
+    container_name: phpmyadmin
+    environment:
+      - PMA_ARBITRARY=1
+    restart: unless-stopped
+    volumes:
+      - ./darkwolf/:/var/www/html/themes/darkwolf/
+    networks:
+      - phpmyadmin-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.example.com`)"
+      - "traefik.http.routers.phpmyadmin.entrypoints=websecure"
+      - "traefik.http.routers.phpmyadmin.tls.certresolver=default"
+      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+
+networks:
+
+  phpmyadmin-net:
+    name: phpmyadmin-net
+
+  traefik-net:
+    name: traefik-net
+    external: true

@@ -1,0 +1,118 @@
+version: "3.8"
+
+networks:
+
+  wireguard_net:
+    name: wireguard_net
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.2.0.0/24
+
+  traefik-net:
+    name: traefik-net
+    external: true
+
+services:
+
+  unbound:
+    image: "mvance/unbound-rpi:latest"
+    container_name: unbound
+    restart: unless-stopped
+    hostname: "unbound"
+    volumes:
+      - "./unbound:/opt/unbound/etc/unbound/"
+    networks:
+      wireguard_net:
+        ipv4_address: 10.2.0.200
+
+  wireguard:
+    depends_on: [unbound, pihole]
+    image: linuxserver/wireguard:latest
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./wireguard:/config
+    ports:
+      - "51820:51820/udp" # port of the wireguard server
+    restart: unless-stopped
+    networks:
+      wireguard_net:
+        ipv4_address: 10.2.0.3
+      traefik-net:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wireguard-ui.rule=Host(`wireguard-ui.example.com`)"
+      - "traefik.http.routers.wireguard-ui.entrypoints=websecure"
+      - "traefik.http.routers.wireguard-ui.tls.certresolver=default"
+      - "traefik.http.services.wireguard-ui.loadbalancer.server.port=5000"
+      - "traefik.docker.network=traefik-net"
+
+  wireguard-ui:
+    image: ngoduykhanh/wireguard-ui:latest
+    container_name: wireguard-ui
+    depends_on:
+      - wireguard
+    cap_add:
+      - NET_ADMIN
+    # use the network of the 'wireguard' service. this enables to show active clients in the status page
+    network_mode: service:wireguard
+    env_file: ./.env
+    environment:
+      - SENDGRID_API_KEY
+      - EMAIL_FROM_ADDRESS
+      - EMAIL_FROM_NAME
+      - SESSION_SECRET
+      - WGUI_USERNAME=$WIREGUARD_UI_USERNAME
+      - WGUI_PASSWORD=$WIREGUARD_UI_PASSWORD
+      - WG_CONF_TEMPLATE
+      - WGUI_MANAGE_START=true
+      - WGUI_MANAGE_RESTART=true
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+    volumes:
+      - ./wireguard-ui-db:/app/db
+      - ./wireguard:/etc/wireguard
+
+  pihole:
+    depends_on: [unbound]
+    container_name: pihole
+    image: pihole/pihole:latest
+    restart: unless-stopped
+    hostname: pihole
+    env_file: ./.env
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pihole.rule=Host(`pihole.example.com`)"
+      - "traefik.http.routers.pihole.entrypoints=websecure"
+      - "traefik.http.routers.pihole.tls.certresolver=default"
+      - "traefik.http.services.pihole.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+    dns:
+      - 127.0.0.1
+      - 10.2.0.200 # Points to unbound
+    environment:
+      TZ: "Europe/Zurich"
+      WEBPASSWORD: $PIHOLE_PASSWORD # Blank password - Can be whatever you want.
+      ServerIP: 10.2.0.100 # Internal IP of pihole
+      DNS1: 10.2.0.200 # Unbound IP
+      DNS2: 10.2.0.200 # If we don't specify two, it will auto pick google.
+    # Volumes store your data between container upgrades
+    volumes:
+      - "./etc-pihole/:/etc/pihole/"
+      - "./etc-dnsmasq.d/:/etc/dnsmasq.d/"
+    # Recommended but not required (DHCP needs NET_ADMIN)
+    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
+    cap_add:
+      - NET_ADMIN
+    networks:
+      wireguard_net:
+        ipv4_address: 10.2.0.100
+      traefik-net:
+
