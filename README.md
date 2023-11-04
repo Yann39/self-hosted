@@ -1,18 +1,26 @@
+<img src="images/header.svg" alt="Header image"/>
+
 # Self-hosting guide
 
+![Static Badge](https://img.shields.io/badge/Version-1.0.0-lightgreen)
 ![Static Badge](https://img.shields.io/badge/Last%20update-19%20Oct%202023-blue)
 
-This project describe my self-hosted infrastructure setup, running on a **Banana Pi M5** board.
+This project describe my personal **self-hosted** infrastructure setup, running on a **Banana Pi M5** board.
 
-It uses only free and open source software :
+<div style="display:flex;flex-flow:row wrap;align-items:center;gap:16px;padding-bottom:16px">
+  <img src="images/logo-open-source-initiative.png" alt="Android logo" height="56"/>
+
+It uses only **free** and **open source** software
+
+</div>
 
 |                                       Logo                                        | Name           | Repository                                  | Description                                          |
 |:---------------------------------------------------------------------------------:|----------------|---------------------------------------------|------------------------------------------------------|
-|         <img src="images/logo-docker.png" alt="Docker logo" height="24"/>         | Docker         | https://github.com/docker                   | Help to build, share, and run container applications |
+|         <img src="images/logo-docker.svg" alt="Docker logo" height="24"/>         | Docker         | https://github.com/docker                   | Help to build, share, and run container applications |
 | <img src="images/logo-docker-compose.png" alt="Docker Compose logo" height="38"/> | Docker Compose | https://github.com/docker/compose           | Run multi-container applications with Docker         |
-|      <img src="images/logo-portainer.png" alt="Portainer logo" height="32"/>      | Portainer      | https://github.com/portainer/portainer      | Management platform for containerized applications   |
+|      <img src="images/logo-portainer.svg" alt="Portainer logo" height="32"/>      | Portainer      | https://github.com/portainer/portainer      | Management platform for containerized applications   |
 |        <img src="images/logo-sablier.png" alt="Sablier logo" height="38"/>        | Sablier        | https://github.com/acouvreur/sablier        | Workload scaling on demand                           |
-|        <img src="images/logo-traefik.png" alt="Traefik logo" height="35"/>        | Traefik        | https://github.com/traefik/traefik          | Modern HTTP reverse proxy and load balancer          |
+|        <img src="images/logo-traefik.svg" alt="Traefik logo" height="35"/>        | Traefik        | https://github.com/traefik/traefik          | Modern HTTP reverse proxy and load balancer          |
 |      <img src="images/logo-wireguard.png" alt="Wireguard logo" height="30"/>      | Wireguard      | https://github.com/WireGuard                | Simple yet fast and modern VPN                       |
 |    <img src="images/logo-wireguard.png" alt="Wireguard UI logo" height="30"/>     | Wireguard UI   | https://github.com/ngoduykhanh/wireguard-ui | Web user interface to manage WireGuard setup         |
 |        <img src="images/logo-pihole.png" alt="Pi-hole logo" height="34"/>         | Pi-hole        | https://github.com/pi-hole/pi-hole          | Network-wide ad blocking                             |
@@ -26,6 +34,23 @@ It uses only free and open source software :
 |     <img src="images/logo-phpmyadmin.png" alt="PhpMyAdmin logo" height="32"/>     | PhpMyAdmin     | https://github.com/phpmyadmin/phpmyadmin    | Web user interface to manage MySQL databases         |
 |          <img src="images/logo-kopia.png" alt="Kopia logo" height="32"/>          | Kopia          | https://github.com/kopia/kopia              | Fast and secure open-source backup/restore tool      |
 
+Yes, all of this runs on a single Banana Pi M5 board !
+
+<div style="display:flex;flex-flow:row wrap;align-items:center;gap:16px">
+  <img src="images/banana-pi-front.png" alt="Banana board front view" height="148"/>
+  <div>
+
+- Amlogic S905X3 64-bit Quad core Cortex-A55 (2.0 GHz)
+- GPU Mali-G31 MP2
+- 4GB LPDDR4
+- 16GB eMMC flash
+- 1 GbE ethernet
+- 4 x USB 3.0
+
+  </div>
+
+</div>
+
 # Table of Content
 
 1. [Banana Pi M5 initial setup](#banana-pi-m5-initial-setup)
@@ -33,13 +58,13 @@ It uses only free and open source software :
     2. [Format the eMMC storage](#format-the-emmc-storage)
     3. [Install Armbian on the MicroSD](#install-armbian-on-the-microsd)
     4. [Install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage)
-2. [Prepare Armbian system](#prepare-armbian-system)
-    1. [Some cleaning](#some-cleaning)
+2. [Prepare system](#prepare-system)
+    1. [Cleaning](#cleaning)
     2. [Docker & Docker Compose](#docker--docker-compose)
 3. [Prepare network configuration](#prepare-network-configuration)
-    1. [Port forwarding](#port-forwarding)
-    2. [Dynamic DNS](#dynamic-dns)
-    3. [Domain and subdomains](#domain-and-subdomains)
+    1. [Dynamic DNS](#dynamic-dns)
+    2. [Domain and subdomains](#domain-and-subdomains)
+    3. [Port forwarding](#port-forwarding)
 4. [Install tools](#install-tools)
     1. [Traefik](#traefik)
     2. [Portainer](#portainer)
@@ -53,15 +78,25 @@ It uses only free and open source software :
 
 # Banana Pi M5 initial setup
 
-<div style="display:flex;flex-flow:row wrap;align-items:center; gap:40px">
+<div style="display:flex;flex-flow:row wrap;align-items:center; gap:40px;padding:16px">
+  <img src="images/logo-open-source-hardware.png" alt="Open source hardware logo" height="118"/>
   <img src="images/logo-banana-pi.png" alt="Banana Pi logo" height="128"/>
-  <img src="images/logo-open-source-hardware.png" alt="Open source hardwre logo" height="118"/>
-  <img src="images/logo-armbian.png" alt="Armbian logo" height="36"/>
 </div>
+
+By default, there is no system installed on the Banana Pi.
+We have to install a system either on the **MicroSD** card or on the **eMMC** storage.
+eMMC storage offers better performance but is limited to **16Gb**, it should be enough for our needs though.
+
+I will describe below the procedures to install a system on the MicroSD card and on the eMMC storage.
 
 ## Install Android on the eMMC storage
 
-Installing **Android** is optional, you can directly [format the eMMC storage](#format-the-emmc-storage)
+<div style="display:flex;flex-flow:row wrap;align-items:center;gap:40px;padding:16px">
+  <img src="images/logo-android.svg" alt="Android logo" height="64"/>
+  <img src="images/logo-emmc.svg" alt="Armbian logo" height="36"/>
+</div>
+
+This is the first thing I tried, but installing **Android** is optional, you can directly [format the eMMC storage](#format-the-emmc-storage)
 then [install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage), you will still need to execute some of the steps described below.
 
 From your machine (Windows in my case) :
@@ -79,52 +114,75 @@ From your machine (Windows in my case) :
 
 ## Format the eMMC storage
 
-- Same steps as above ([Install Android on the eMMC storage](#install-android-on-the-emmc-storage)) but unplug the USB cable during the "Formatting" step (not too early and not too
+<div style="display:flex;flex-flow:row wrap;align-items:center;gap:40px;padding:16px">
+  <img src="images/logo-emmc2.png" alt="eMMC logo" height="74" />
+</div>
+
+You need to format the eMMC storage to be able to install a new system. To do that :
+
+- Execute the same steps as above ([Install Android on the eMMC storage](#install-android-on-the-emmc-storage)) but unplug the USB cable during the "Formatting" step (not too early
+  and not too
   late, had to do it multiple times until it worked)
-- Plug in the USB-C power cable to the Banana Pi, it should boot on the MicroSD card, indeed the Banana Pi will boot on the MicroSD card only if the eMMC storage is empty
+- Plug in the USB-C power cable to the Banana Pi, it should boot on the MicroSD card, indeed **the Banana Pi will boot on the MicroSD card only if the eMMC storage is empty**
 
 ## Install Armbian on the MicroSD
 
-Installation on the **MicroSD** is optional, you can directly [install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage).
+<div style="display:flex;flex-flow:row wrap;align-items:center;gap:40px;padding:16px">
+  <img src="images/logo-armbian.png" alt="Armbian logo" height="42"/>
+  <img src="images/logo-microsd.png" alt="MicroSD logo" height="42"/>
+</div>
+
+I decided to use **Armbian** as operating system, Armbian is a **Linux** distribution designed for **ARM** development boards.
+Unlike Raspbian, Armbian focuses on unifying the experience across many ARM single-board computers.
+
+I first installed it on the **MicroSD** card, then used it to burn the Armbian image into the eMMC storage later
+(see [install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage)).
 
 From your machine (Windows in my case) :
 
-- Download latest **Armbian** image for Banana Pi M5 : _Armbian_23.02.2_Bananapim5_bullseye_current_6.1.11_gnome_desktop.img.xz_
-- Extract it to get _Armbian_23.02.2_Bananapim5_bullseye_current_6.1.11_gnome_desktop.img_ file
+- Download latest **Armbian** image for Banana Pi M5, choose the CLI or the GUI image depending on your preference :
+    - With GUI : _Armbian_23.02.2_Bananapim5_bullseye_current_6.1.11_gnome_desktop.img.xz_
+    - Without GUI (CLI) : _Armbian_23.02.2_Bananapim5_bullseye_current_6.1.11.img.xz_
+- Extract it to get the _img_ file
 - Connect the MiroSD card to the PC
 - Download **Rufus** (3.21 when writing this) or equivalent software to be able to write the image to the MicroSD card
-- Simply select the image in Rufus and write it to the MicroSD card with the default proposed options
+- Simply select the image in **Rufus** and write it to the MicroSD card with the default proposed options
 - Insert the MicroSD card into the Banana Pi and plug in the USB power cable, this should boot on Armbian on the MicroSD card
 
 ## Install Armbian on the eMMC storage
+
+<div style="display:flex;flex-flow:row wrap;align-items:center;gap:40px;padding:16px">
+  <img src="images/logo-armbian.png" alt="Armbian logo" height="42"/>
+  <img src="images/logo-emmc.svg" alt="Armbian logo" height="36"/>
+</div>
+
+We will install Armbian in the eMMC storage, this setup will offer the best performances.
 
 - Plug in the USB-C power cable of the Banana Pi M5 to boot on Armbian in the MicroSD card
 - Put the Armbian image in the Banana Pi MicroSD card storage (through USB key or network or whatever), for example in _/home/yann/Documents_
 - Run `fdisk -l` command to identify the **eMMC** path, should be something like _/dev/mmcblk1_
 - Burn the image to the eMMC storage by running the command :
-    ```bash
-    sudo dd if=Armbian_23.02.2_Bananapim5_bullseye_current_6.1.11_gnome_desktop.img of=/dev/mmcblk1 bs=10MB
-    ```
+  ```shell
+  sudo dd if=Armbian_23.02.2_Bananapim5_bullseye_current_6.1.11_gnome_desktop.img of=/dev/mmcblk1 bs=10MB
+  ```
 - Remove the MicroSD card and reboot the Banana Pi M5, it should boot on Armbian on the eMMC storage
 
-# Prepare Armbian system
+# Prepare system
 
-<img src="images/logo-armbian2.png" alt="Armbian logo" height="200"/>
+## Cleaning
 
-## Some cleaning
-
-Armbian come with default installed software that we will not use, let's remove related packages to save disK space.
+**Armbian** come with default installed software that we will not use. If, like me, you chose the GUI image, let's remove some packages to save disk space.
 
 1. Upgrade packages :
 
-    ```bash
+    ```shell
     sudo apt update
     sudo apt upgrade
     ```
 
 2. Remove packages we don't need :
 
-    ```bash
+    ```shell
     sudo apt purge --auto-remove gimp
     sudo apt purge --auto-remove hexchat
     sudo apt purge qbittorrent
@@ -152,7 +210,7 @@ files and localized man pages.
 
 Install the package :
 
-```bash
+```shell
 sudo apt install localepurge
 ```
 
@@ -169,7 +227,7 @@ Any locale you have not selected will be purged.
 
 If you need to run it again, execute :
 
-```bash
+```shell
 sudo dpkg-reconfigure localepurge
 ```
 
@@ -193,25 +251,28 @@ All of this should have saved some megabytes and unnecessary disk I/O.
 
 ## Docker & Docker Compose
 
-<div style="display:flex;flex-flow:row wrap;align-items:center; gap:40px">
-  <img src="images/logo-docker.png" alt="Docker logo"/>
-  <img src="images/logo-docker-compose.png" alt="Docker logo"/>
+<div style="display:flex;flex-flow:row wrap;align-items:center;gap:40px;padding:16px">
+  <img src="images/logo-docker.svg" alt="Docker logo" height="128"/>
+  <img src="images/logo-docker-compose.png" alt="Docker logo" height="148"/>
 </div>
 
 We will use **Docker** to containerize and run our different applications.
 
+Docker enables to separate applications from the infrastructure, it provides the ability to package and run an application in an isolated environment called a **container**.
+Containers contain everything needed to run the application, so you don't need to rely on what's installed on the host.
+
 Docker provides an installation script, just run it :
 
-```bash
+```shell
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
-sudo docker version
 sudo rm get-docker.sh
+sudo docker version
 ```
 
 Then also install **Docker-Compose**, so we can define and run multi-container Docker applications :
 
-```bash
+```shell
 sudo apt install docker-compose -y
 sudo docker-compose version
 ```
@@ -220,34 +281,52 @@ sudo docker-compose version
 
 Before installing our services, we need to configure the network, so we can reach our applications from the internet.
 
-## Port forwarding
+The idea is to have :
 
-We need to forward incoming requests to our Banana Pi board (will be then handled by **Traefik** reverse proxy).
+- A main domain name
+- A subdomain name for each application that must be reachable from the internet
+- A dynamic DNS name to avoid having to use a static public IP address (keep DHCP)
+- A Traefik reverse proxy that will handle HTTP request that will be port forwarded to the Banana Pi
 
-Go to your router configuration and add a **port forward rule** for the port `80` :
+```mermaid
+flowchart LR
+    style HOSTING_PROVIDER fill: #4d683b
+    style DDNS_PROVIDER fill: #69587b
+    style INTERNET_SERVICE_PROVIDER fill: #205566
+    style TRAEFIK_CONTAINER fill: #663535
+    SUBDOMAIN_MYAPP(myapp.example.com)
+    DDNS(myddns.ddns.net)
+    ROUTER[public IP]
+    ROUTER_PORT{{port}}
+    DOCKER_TRAEFIK_PORT{{port}}
 
-- Name : Traefik
-- Input port : 80
-- Target port : 80
-- Device : bananapim5
-- Protocol : TCP
+    subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
+        SUBDOMAIN_MYAPP
+    end
 
-and `443` (website must be reachable from the internet to generate the **SSL** certificate) :
+    subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
+        SUBDOMAIN_MYAPP -->|CNAME| DDNS
+    end
 
-- Name : Traefik SSL
-- Input port : 443
-- Target port : 443
-- Device : bananapim5
-- Protocol : TCP
+    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
+        DDNS -->|DynDNS| ROUTER
+        ROUTER --> ROUTER_PORT
+    end
+
+    subgraph TRAEFIK_CONTAINER[TRAEFIK]
+        ROUTER_PORT -->|port forward| DOCKER_TRAEFIK_PORT
+    end
+
+```
 
 ## Dynamic DNS
 
-When connecting from outside our network (from the internet), we need to know the public IP address of our router to connect.
-But as we are getting dynamically-assigned public IP addresses (via DHCP), we would need to update the configuration everytime the IP changes, which is very uncomfortable.
-Fortunately we can register a dynamic host record (DynDNS), and set it in our router configuration so that when the public IP address changes, a call is made to the DynDNS service
-provider to update the record. That way our network will always be reachable from the internet via the DynDNS record no matter the IP address.
+When connecting from outside our network (from the internet), we need to know the **public IP address** of our router to connect.
+But as we are getting dynamically-assigned public IP addresses (via **DHCP**), we would need to update the configuration everytime the IP changes, which is very uncomfortable.
+Fortunately we can register a **dynamic host record** (DynDNS), and set it in our router configuration so that when the public IP address changes, a call is made to the DynDNS
+service provider to update the record. That way our network will always be reachable from the internet via the **DynDNS** record no matter the IP address.
 
-Register a **dynamic DNS** hostname from a free provider, for example **No-IP** https://my.noip.com/ :
+So simply register a **dynamic DNS** hostname from a free provider, for example **No-IP**, **DuckDNS**, etc. :
 
 - hostname : `myddns.ddns.net`
 - IP / target : _internet box external IP_
@@ -266,35 +345,104 @@ The IP will be updated automatically when a change will be detected.
 
 You will need to buy a domain from you preferred domain provider, for example `example.com`.
 
-Then create **subdomains** from the domain provider settings :
+Then create **subdomains** from the domain provider settings, for every service to be exposed on the internet  :
 
 - `traefik.example.com` : To access the [Traefik](#traefik) dashboard
 - `portainer.example.com` : To access the [Portainer](#portainer) application
 - `phpmyadmin.example.com` : To access the [PhpMyAdmin](#phpmyadmin) application
-
-
 - `dashboard.example.com` : To access the [Homer](#homer) application
 - `dashdot.example.com` : To access the [Dashdot](#dashdot) application
 - `uptime-kuma.example.com` : To access the [Uptime Kuma](#uptime-kuma) application
 
-Add **CNAME records** to point to dynamic DNS `myddns.ddns.net` :
+And add **CNAME records** to point to the dynamic DNS `myddns.ddns.net` :
 
 - `CNAME	traefik	        myddns.ddns.net`
 - `CNAME	portainer	    myddns.ddns.net`
 - `CNAME	phpmyadmin	    myddns.ddns.net`
-
-
 - `CNAME	dashboard	    myddns.ddns.net`
 - `CNAME	dashdot	        myddns.ddns.net`
 - `CNAME	uptime-kuma	    myddns.ddns.net`
 
+A **CNAME record** is just a records which points a name to another name instead of pointing to an IP (like **A** records).
+
+## Port forwarding
+
+We need to **forward incoming requests** to our Banana Pi board so that they will be handled by our **Traefik** reverse proxy).
+
+Go to your router configuration and add a **port forward rule** for the port `80` :
+
+- Name : Traefik
+- Input port : 80
+- Target port : 80
+- Device : bananapim5
+- Protocol : TCP
+
+and `443` (website must be reachable from the internet to generate the **SSL** certificate) :
+
+- Name : Traefik SSL
+- Input port : 443
+- Target port : 443
+- Device : bananapim5
+- Protocol : TCP
+
 # Install tools
+
+We will install some admin tools to monitor and organize our applications.
 
 ## Traefik
 
-<img src="images/logo-traefik.png" alt="Docker logo"/>
+<img src="images/logo-traefik.svg" alt="Docker logo" height="148"/>
 
-We will use **Traefik** as reverse proxy to intercept and route every incoming request to the corresponding backend services.
+We will use **Traefik**, an open source **HTTP reverse proxy** and **load balancer** that can integrate easily with our Docker infrastructure, to intercept and route every incoming
+request to the corresponding backend services. We will also use it to generate **TLS certificates**.
+
+```mermaid
+flowchart LR
+    style INTERNET_SERVICE_PROVIDER fill: #205566
+    style SINGLE_BOARD_COMPUTER fill: #665151
+    style CONTAINER_ENGINE fill: #664343
+    style TRAEFIK_CONTAINER fill: #663535
+    style MYAPP_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    ROUTER_PORT80{{80/tcp}}
+    ROUTER_PORT443{{443/tcp}}
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_MYAPP_PORT5000{{app port}}
+    DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
+    TRAEFIK_ROUTER_MYAPP(myapp.example.com)
+    TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
+
+    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
+        ROUTER_PORT80
+        ROUTER_PORT443
+    end
+
+    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
+    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
+                DOCKER_MYAPP_PORT5000
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_MYAPP
+                    TRAEFIK_ROUTER_TRAEFIK
+                end
+
+                TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
+                TRAEFIK_ROUTER_MYAPP --> DOCKER_MYAPP_PORT5000
+            end
+
+        end
+    end
+```
 
 ### Setting up
 
@@ -377,11 +525,59 @@ It should also have generated the needed Let's Encrypt certificates in the _acme
 
 So you can reach the dashboard at https://traefik.example.com.
 
+<img src="images/screen-traefik.png" alt="Traefik dashboard screenshot"/>
+
 ## Portainer
 
-<img src="images/logo-portainer.png" alt="Docker logo"/>
+<img src="images/logo-portainer.svg" alt="Docker logo" height="148"/>
 
 We will use **Portainer** to easily manage our Docker containers.
+
+Portainer is an open source web interface that allows to create, modify, restart, monitor... Docker containers, images, volumes, networks and more.
+
+```mermaid
+flowchart LR
+    style INTERNET_SERVICE_PROVIDER fill: #205566
+    style SINGLE_BOARD_COMPUTER fill: #665151
+    style CONTAINER_ENGINE fill: #664343
+    style TRAEFIK_CONTAINER fill: #663535
+    style PORTAINER_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    ROUTER_PORT80{{80/tcp}}
+    ROUTER_PORT443{{443/tcp}}
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_PORTAINER_PORT9000{{9000/tcp}}
+    TRAEFIK_ROUTER_PORTAINER(portainer.example.com)
+
+    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
+        ROUTER_PORT80
+        ROUTER_PORT443
+    end
+
+    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
+    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph PORTAINER_CONTAINER[PORTAINER CONTAINER]
+                DOCKER_PORTAINER_PORT9000
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_PORTAINER
+                end
+
+                TRAEFIK_ROUTER_PORTAINER --> DOCKER_PORTAINER_PORT9000
+            end
+
+        end
+    end
+```
 
 ### Setting up
 
@@ -418,11 +614,60 @@ It should also have generated the needed Let's Encrypt certificates in the _acme
 
 The application is available at https://portainer.example.com.
 
+<img src="images/screen-portainer.png" alt="Portainer dashboard screenshot"/>
+
 ## PhpMyAdmin
 
 <img src="images/logo-phpmyadmin.png" alt="PhpMyAdmin logo"/>
 
 As our services will use some MySQL/MariaDB databases, we will use **PhpMyAdmin** to easily manage our databases.
+
+phpMyAdmin is a free software tool intended to handle the administration of MySQL over the Web, it supports a wide range of operations on **MySQL** and **MariaDB** (managing databases,
+tables, columns, relations, indexes, users, permissions, etc.).
+
+```mermaid
+flowchart LR
+    style INTERNET_SERVICE_PROVIDER fill: #205566
+    style SINGLE_BOARD_COMPUTER fill: #665151
+    style CONTAINER_ENGINE fill: #664343
+    style TRAEFIK_CONTAINER fill: #663535
+    style PHPMYADMIN_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    ROUTER_PORT80{{80/tcp}}
+    ROUTER_PORT443{{443/tcp}}
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_PHPMYADMIN_PORT80{{80/tcp}}
+    TRAEFIK_ROUTER_PHPMYADMIN(phpmyadmin.example.com)
+
+    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
+        ROUTER_PORT80
+        ROUTER_PORT443
+    end
+
+    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
+    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph PHPMYADMIN_CONTAINER[PHPMYADMIN CONTAINER]
+                DOCKER_PHPMYADMIN_PORT80
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_PHPMYADMIN
+                end
+
+                TRAEFIK_ROUTER_PHPMYADMIN --> DOCKER_PHPMYADMIN_PORT80
+            end
+
+        end
+    end
+```
 
 ### Setting up
 
@@ -461,6 +706,10 @@ You should end-up with a running `phpmyadmin` container.
 It should also have generated the needed Let's Encrypt certificates in the _acme.json_ file in the Traefik folder.
 
 The application is available at https://phpmyadmin.example.com.
+
+Then use the database **service name** as host to connect to a database.
+
+<img src="images/screen-phpmyadmin.png" alt="PhpMyAdmin screenshot"/>
 
 # Install services
 
