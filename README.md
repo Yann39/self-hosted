@@ -2,17 +2,53 @@
 
 # Self-hosting guide
 
-![Static Badge](https://img.shields.io/badge/Version-1.0.0-lightgreen)
+![Static Badge](https://img.shields.io/badge/Version-1.0.0-2AAB92)
 ![Static Badge](https://img.shields.io/badge/Last%20update-19%20Oct%202023-blue)
 
 This project describe my personal **self-hosted** infrastructure setup, running on a **Banana Pi M5** board.
 
-<div style="display:flex;flex-flow:row wrap;align-items:center;gap:16px;padding-bottom:16px">
-  <img src="images/logo-open-source-initiative.png" alt="Android logo" height="56"/>
+It uses only **free** and **open source** software.
 
-It uses only **free** and **open source** software
+<table>
+  <tr>
+    <td>
+      <img src="images/logo-open-source-initiative.svg" alt="Android logo" height="128"/>
+    </td>
+    <td>
+      <img src="images/logo-open-source-hardware.svg" alt="Open source hardware logo" height="128"/>
+    </td>
+  </tr>
+</table>
 
-</div>
+# Table of Content
+
+1. [Overview](#overview)
+2. [Banana Pi M5 initial setup](#banana-pi-m5-initial-setup)
+    1. [Install Android on the eMMC storage](#install-android-on-the-emmc-storage)
+    2. [Format the eMMC storage](#format-the-emmc-storage)
+    3. [Install Armbian on the MicroSD](#install-armbian-on-the-microsd)
+    4. [Install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage)
+3. [Prepare system](#prepare-system)
+    1. [Cleaning](#cleaning)
+    2. [Docker & Docker Compose](#docker--docker-compose)
+4. [Prepare network configuration](#prepare-network-configuration)
+    1. [Dynamic DNS](#dynamic-dns)
+    2. [Domain and subdomains](#domain-and-subdomains)
+    3. [Port forwarding](#port-forwarding)
+5. [Install tools](#install-tools)
+    1. [Traefik](#traefik)
+    2. [Portainer](#portainer)
+    3. [PhpMyAdmin](#phpmyadmin)
+6. [Install services](#install-services)
+    1. [Homer](#homer)
+    2. [Dashdot](#dashdot)
+    3. [Uptime Kuma](#uptime-kuma)
+    4. [Ackee](#ackee)
+7. [Install applications](#install-applications)
+
+# Overview
+
+These are the tools we are going to run :
 
 |                                       Logo                                        | Name           | Repository                                  | Description                                          |
 |:---------------------------------------------------------------------------------:|----------------|---------------------------------------------|------------------------------------------------------|
@@ -21,67 +57,148 @@ It uses only **free** and **open source** software
 |      <img src="images/logo-portainer.svg" alt="Portainer logo" height="32"/>      | Portainer      | https://github.com/portainer/portainer      | Management platform for containerized applications   |
 |        <img src="images/logo-sablier.png" alt="Sablier logo" height="38"/>        | Sablier        | https://github.com/acouvreur/sablier        | Workload scaling on demand                           |
 |        <img src="images/logo-traefik.svg" alt="Traefik logo" height="35"/>        | Traefik        | https://github.com/traefik/traefik          | Modern HTTP reverse proxy and load balancer          |
-|      <img src="images/logo-wireguard.png" alt="Wireguard logo" height="30"/>      | Wireguard      | https://github.com/WireGuard                | Simple yet fast and modern VPN                       |
-|    <img src="images/logo-wireguard.png" alt="Wireguard UI logo" height="30"/>     | Wireguard UI   | https://github.com/ngoduykhanh/wireguard-ui | Web user interface to manage WireGuard setup         |
-|        <img src="images/logo-pihole.png" alt="Pi-hole logo" height="34"/>         | Pi-hole        | https://github.com/pi-hole/pi-hole          | Network-wide ad blocking                             |
-|        <img src="images/logo-unbound.png" alt="Unbound logo" height="32"/>        | Unbound        | https://github.com/NLnetLabs/unbound        | Validating, recursive, and caching DNS resolver      |
-|    <img src="images/logo-uptime-kuma.png" alt="Uptime Kuma logo" height="32"/>    | Uptime Kuma    | https://github.com/louislam/uptime-kuma     | Easy-to-use self-hosted monitoring tool              |
+|      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="30"/>      | Wireguard      | https://github.com/WireGuard                | Simple yet fast and modern VPN                       |
+|      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="30"/>      | Wireguard UI   | https://github.com/ngoduykhanh/wireguard-ui | Web user interface to manage WireGuard setup         |
+|        <img src="images/logo-pihole.svg" alt="Pi-hole logo" height="34"/>         | Pi-hole        | https://github.com/pi-hole/pi-hole          | Network-wide ad blocking                             |
+|        <img src="images/logo-unbound.svg" alt="Unbound logo" height="32"/>        | Unbound        | https://github.com/NLnetLabs/unbound        | Validating, recursive, and caching DNS resolver      |
+|    <img src="images/logo-uptime-kuma.svg" alt="Uptime Kuma logo" height="34"/>    | Uptime Kuma    | https://github.com/louislam/uptime-kuma     | Easy-to-use self-hosted monitoring tool              |
 |          <img src="images/logo-homer.png" alt="Homer logo" height="30"/>          | Homer          | https://github.com/bastienwirtz/homer       | Static application dashboard                         |
 |        <img src="images/logo-dashdot.png" alt="Dashdot logo" height="32"/>        | Dashdot        | https://github.com/MauriceNino/dashdot      | Minimal server dashboard and monitoring              |
 |          <img src="images/logo-ackee.png" alt="Ackee logo" height="32"/>          | Ackee          | https://github.com/electerious/Ackee        | Analytics tool that cares about privacy              |
-|     <img src="images/logo-photoprism.png" alt="Photoprism logo" height="32"/>     | Photoprism     | https://github.com/photoprism/photoprism    | AI-Powered photo manager                             |
 |         <img src="images/logo-lychee.png" alt="Lychee logo" height="32"/>         | Lychee         | https://github.com/LycheeOrg/Lychee         | Free photo-management tool                           |
-|     <img src="images/logo-phpmyadmin.png" alt="PhpMyAdmin logo" height="32"/>     | PhpMyAdmin     | https://github.com/phpmyadmin/phpmyadmin    | Web user interface to manage MySQL databases         |
+|     <img src="images/logo-phpmyadmin.svg" alt="PhpMyAdmin logo" height="32"/>     | PhpMyAdmin     | https://github.com/phpmyadmin/phpmyadmin    | Web user interface to manage MySQL databases         |
 |          <img src="images/logo-kopia.png" alt="Kopia logo" height="32"/>          | Kopia          | https://github.com/kopia/kopia              | Fast and secure open-source backup/restore tool      |
 
 Yes, all of this runs on a single Banana Pi M5 board !
 
-<div style="display:flex;flex-flow:row wrap;align-items:center;gap:16px">
-  <img src="images/banana-pi-front.png" alt="Banana board front view" height="148"/>
-  <div>
+<table>
+  <tr>
+    <td>
+      <img src="images/banana-pi-front.png" alt="Banana board front view" height="172"/>
+    </td>
+    <td>
+      <ul>
+        <li>Amlogic S905X3 64-bit Quad core Cortex-A55 (2.0 GHz)</li>
+        <li>GPU Mali-G31 MP2</li>
+        <li>4GB LPDDR4</li>
+        <li>16GB eMMC flash</li>
+        <li>1 GbE ethernet</li>
+        <li>4 x USB 3.0</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-- Amlogic S905X3 64-bit Quad core Cortex-A55 (2.0 GHz)
-- GPU Mali-G31 MP2
-- 4GB LPDDR4
-- 16GB eMMC flash
-- 1 GbE ethernet
-- 4 x USB 3.0
+```mermaid
+flowchart TB
+    style HOSTING_PROVIDER fill: #4d683b
+    style DDNS_PROVIDER fill: #69587b
+    style INTERNET_SERVICE_PROVIDER fill: #205566
+    style SINGLE_BOARD_COMPUTER fill: #584444
+    style CONTAINER_ENGINE fill: #6b4646
+    style TRAEFIK_CONTAINER fill: #653f3f
+    style PIHOLE_CONTAINER fill: #653f3f
+    style WIREGUARD_CONTAINER fill: #653f3f
+    style WIREGUARD_UI_CONTAINER fill: #653f3f
+    style UNBOUND_CONTAINER fill: #653f3f
+    style TRAEFIK_ROUTER fill: #806030
+    DOMAIN(example.com)
+    SUBDOMAIN_WIREGUARD(wireguard.example.com)
+    SUBDOMAIN_WIREGUARD_UI(wireguard-ui.example.com)
+    SUBDOMAIN_TRAEFIK(traefik.example.com)
+    SUBDOMAIN_PIHOLE(pihole.example.com)
+    DDNS(myddns.ddns.net)
+    ROUTER[public IP]
+    ROUTER_PORT80{{80/tcp}}
+    ROUTER_PORT443{{443/tcp}}
+    ROUTER_PORT51820{{51820/udp}}
+    DOCKER_WIREGUARD_PORT51820{{51820/udp}}
+    DOCKER_WIREGUARD_UI_PORT51821{{51821/tcp}}
+    DOCKER_PIHOLE_PORT80{{80/tcp}}
+    DOCKER_PIHOLE_PORT53{{53/udp}}
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
+    DOCKER_UNBOUND_PORT53{{53/udp}}
+    TRAEFIK_ROUTER_WIREGUARD_UI(wireguard-ui.example.com)
+    TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
+    TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
+    ROOT_DNS_SERVERS[Root DNS servers]
 
-  </div>
+    subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
+        DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
+        DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD_UI
+        DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
+        DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
+    end
 
-</div>
+    subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
+        SUBDOMAIN_WIREGUARD -->|CNAME| DDNS
+        SUBDOMAIN_WIREGUARD_UI -->|CNAME| DDNS
+        SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
+        SUBDOMAIN_PIHOLE -->|CNAME| DDNS
+    end
 
-# Table of Content
+    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
+        DDNS -->|DynDNS| ROUTER
+        ROUTER --> ROUTER_PORT80
+        ROUTER --> ROUTER_PORT443
+        ROUTER --> ROUTER_PORT51820
+        DNS[DNS 1]
+    end
 
-1. [Banana Pi M5 initial setup](#banana-pi-m5-initial-setup)
-    1. [Install Android on the eMMC storage](#install-android-on-the-emmc-storage)
-    2. [Format the eMMC storage](#format-the-emmc-storage)
-    3. [Install Armbian on the MicroSD](#install-armbian-on-the-microsd)
-    4. [Install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage)
-2. [Prepare system](#prepare-system)
-    1. [Cleaning](#cleaning)
-    2. [Docker & Docker Compose](#docker--docker-compose)
-3. [Prepare network configuration](#prepare-network-configuration)
-    1. [Dynamic DNS](#dynamic-dns)
-    2. [Domain and subdomains](#domain-and-subdomains)
-    3. [Port forwarding](#port-forwarding)
-4. [Install tools](#install-tools)
-    1. [Traefik](#traefik)
-    2. [Portainer](#portainer)
-    3. [PhpMyAdmin](#phpmyadmin)
-5. [Install services](#install-services)
-    1. [Homer](#homer)
-    2. [Dashdot](#dashdot)
-    3. [Uptime Kuma](#uptime-kuma)
-    4. [Ackee](#ackee)
-6. [Install applications](#install-applications)
+    DNS ------>|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
+    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
+    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
+    ROUTER_PORT51820 -->|port forward| DOCKER_WIREGUARD_PORT51820
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
+                DOCKER_UNBOUND_PORT53
+            end
+
+            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
+                DOCKER_PIHOLE_PORT80
+                DOCKER_PIHOLE_PORT53
+            end
+
+            DOCKER_PIHOLE_PORT53 <----> DOCKER_UNBOUND_PORT53
+
+            subgraph WIREGUARD_CONTAINER[WIREGUARD CONTAINER]
+                DOCKER_WIREGUARD_PORT51820
+            end
+
+            subgraph WIREGUARD_UI_CONTAINER[WIREGUARD-UI CONTAINER]
+                DOCKER_WIREGUARD_UI_PORT51821
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_TRAEFIK
+                    TRAEFIK_ROUTER_WIREGUARD_UI
+                    TRAEFIK_ROUTER_PIHOLE
+                end
+
+                TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
+                TRAEFIK_ROUTER_WIREGUARD_UI ---> DOCKER_WIREGUARD_UI_PORT51821
+                TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
+
+            end
+
+        end
+
+    end
+
+    UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
+```
 
 # Banana Pi M5 initial setup
 
-<div style="display:flex;flex-flow:row wrap;align-items:center; gap:40px;padding:16px">
-  <img src="images/logo-open-source-hardware.png" alt="Open source hardware logo" height="118"/>
-  <img src="images/logo-banana-pi.png" alt="Banana Pi logo" height="128"/>
-</div>
+<img src="images/logo-banana-pi.svg" alt="Banana Pi logo" height="120"/>
 
 By default, there is no system installed on the Banana Pi.
 We have to install a system either on the **MicroSD** card or on the **eMMC** storage.
@@ -91,10 +208,16 @@ I will describe below the procedures to install a system on the MicroSD card and
 
 ## Install Android on the eMMC storage
 
-<div style="display:flex;flex-flow:row wrap;align-items:center;gap:40px;padding:16px">
-  <img src="images/logo-android.svg" alt="Android logo" height="64"/>
-  <img src="images/logo-emmc.svg" alt="Armbian logo" height="36"/>
-</div>
+<table>
+  <tr>
+    <td>
+      <img src="images/logo-android.svg" alt="Android logo" height="64"/>
+    </td>
+    <td>
+      <img src="images/logo-emmc.svg" alt="Armbian logo" height="36"/>
+    </td>
+  </tr>
+</table>
 
 This is the first thing I tried, but installing **Android** is optional, you can directly [format the eMMC storage](#format-the-emmc-storage)
 then [install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage), you will still need to execute some of the steps described below.
@@ -114,9 +237,7 @@ From your machine (Windows in my case) :
 
 ## Format the eMMC storage
 
-<div style="display:flex;flex-flow:row wrap;align-items:center;gap:40px;padding:16px">
-  <img src="images/logo-emmc2.png" alt="eMMC logo" height="74" />
-</div>
+<img src="images/logo-emmc2.png" alt="eMMC logo" height="74" />
 
 You need to format the eMMC storage to be able to install a new system. To do that :
 
@@ -127,10 +248,16 @@ You need to format the eMMC storage to be able to install a new system. To do th
 
 ## Install Armbian on the MicroSD
 
-<div style="display:flex;flex-flow:row wrap;align-items:center;gap:40px;padding:16px">
-  <img src="images/logo-armbian.png" alt="Armbian logo" height="42"/>
-  <img src="images/logo-microsd.png" alt="MicroSD logo" height="42"/>
-</div>
+<table>
+  <tr>
+    <td>
+      <img src="images/logo-armbian.png" alt="Armbian logo" height="42"/>
+    </td>
+    <td>
+      <img src="images/logo-microsd.svg" alt="MicroSD logo" height="42"/>
+    </td>
+  </tr>
+</table>
 
 I decided to use **Armbian** as operating system, Armbian is a **Linux** distribution designed for **ARM** development boards.
 Unlike Raspbian, Armbian focuses on unifying the experience across many ARM single-board computers.
@@ -151,10 +278,16 @@ From your machine (Windows in my case) :
 
 ## Install Armbian on the eMMC storage
 
-<div style="display:flex;flex-flow:row wrap;align-items:center;gap:40px;padding:16px">
-  <img src="images/logo-armbian.png" alt="Armbian logo" height="42"/>
-  <img src="images/logo-emmc.svg" alt="Armbian logo" height="36"/>
-</div>
+<table>
+  <tr>
+    <td>
+      <img src="images/logo-armbian.png" alt="Armbian logo" height="42"/>
+    </td>
+    <td>
+      <img src="images/logo-emmc.svg" alt="Armbian logo" height="36"/>
+    </td>
+  </tr>
+</table>
 
 We will install Armbian in the eMMC storage, this setup will offer the best performances.
 
@@ -251,10 +384,16 @@ All of this should have saved some megabytes and unnecessary disk I/O.
 
 ## Docker & Docker Compose
 
-<div style="display:flex;flex-flow:row wrap;align-items:center;gap:40px;padding:16px">
-  <img src="images/logo-docker.svg" alt="Docker logo" height="128"/>
-  <img src="images/logo-docker-compose.png" alt="Docker logo" height="148"/>
-</div>
+<table>
+  <tr>
+    <td>
+      <img src="images/logo-docker.svg" alt="Docker logo" height="128"/>
+    </td>
+    <td>
+      <img src="images/logo-docker-compose.png" alt="Docker logo" height="148"/>
+    </td>
+  </tr>
+</table>
 
 We will use **Docker** to containerize and run our different applications.
 
@@ -399,8 +538,6 @@ request to the corresponding backend services. We will also use it to generate *
 ```mermaid
 flowchart LR
     style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
     style TRAEFIK_CONTAINER fill: #663535
     style MYAPP_CONTAINER fill: #663535
     style TRAEFIK_ROUTER fill: #806030
@@ -538,8 +675,6 @@ Portainer is an open source web interface that allows to create, modify, restart
 ```mermaid
 flowchart LR
     style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
     style TRAEFIK_CONTAINER fill: #663535
     style PORTAINER_CONTAINER fill: #663535
     style TRAEFIK_ROUTER fill: #806030
@@ -618,18 +753,17 @@ The application is available at https://portainer.example.com.
 
 ## PhpMyAdmin
 
-<img src="images/logo-phpmyadmin.png" alt="PhpMyAdmin logo"/>
+<img src="images/logo-phpmyadmin.svg" alt="PhpMyAdmin logo" height="148"/>
 
 As our services will use some MySQL/MariaDB databases, we will use **PhpMyAdmin** to easily manage our databases.
 
-phpMyAdmin is a free software tool intended to handle the administration of MySQL over the Web, it supports a wide range of operations on **MySQL** and **MariaDB** (managing databases,
+phpMyAdmin is a free software tool intended to handle the administration of MySQL over the Web, it supports a wide range of operations on **MySQL** and **MariaDB** (managing
+databases,
 tables, columns, relations, indexes, users, permissions, etc.).
 
 ```mermaid
 flowchart LR
     style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
     style TRAEFIK_CONTAINER fill: #663535
     style PHPMYADMIN_CONTAINER fill: #663535
     style TRAEFIK_ROUTER fill: #806030
@@ -721,8 +855,6 @@ Then use the database **service name** as host to connect to a database.
 
 We will use it as a dashboard to list our services.
 
-<img src="images/screen-homer.png" alt="Homer dashboard screenshot"/>
-
 ### Setting up
 
 First, create a folder to hold the configuration :
@@ -774,13 +906,13 @@ It should also have generated the needed Let's Encrypt certificates in the _acme
 
 The application will be available at https://dashboard.example.com.
 
+<img src="images/screen-homer.png" alt="Homer dashboard screenshot"/>
+
 ## Dashdot
 
 <img src="images/logo-dashdot.png" alt="Dashdot logo"/>
 
 **Dashdot** is a modern application to monitor server resources through a basic UI.
-
-<img src="images/screen-dashdot.png" alt="Dashdot screenshot"/>
 
 ### Setting up
 
@@ -817,9 +949,11 @@ It should also have generated the needed Let's Encrypt certificates in the _acme
 
 The application is available at https://dashdot.example.com.
 
+<img src="images/screen-dashdot.png" alt="Dashdot screenshot"/>
+
 ## Uptime-Kuma
 
-<img src="images/logo-uptime-kuma.png" alt="Uptime Kuma logo"/>
+<img src="images/logo-uptime-kuma.svg" alt="Uptime Kuma logo" height="148"/>
 
 **Uptime Kuma** is a monitoring tool allowing to monitor application uptime with a simple UI.
 
@@ -931,76 +1065,6 @@ It should also have generated the needed Let's Encrypt certificates in the _acme
 The application is available at https://ackee.example.com.
 
 # Install applications
-
-## Photoprism
-
-<img src="images/logo-photoprism.png" alt="Homer logo"/>
-
-Create a directory to hold the app :
-
-```bash
-mkdir /opt/apps/photoprism
-cd /opt/apps/photoprism
-```
-
-Get compose file for **ARM64** systems :
-
-```bash
-wget https://dl.photoprism.app/docker/arm64/docker-compose.yml
-```
-
-Or use the one from this project (_photoprism/docker-compose.yml_).
-
-Here are the modifications done to the default provided docker-compose :
-
-- Added `container_name: photoprism-app` to the photoprism service and `container_name: photoprism-db` to the mariadb service
-- Set Photoprism admin password by changing the value of the `PHOTOPRISM_ADMIN_PASSWORD` property
-- Set Database "photoprism" user password by changing the value of the `PHOTOPRISM_DATABASE_PASSWORD` and `MARIADB_PASSWORD` properties
-- Set database root password by changing the value of the `MARIADB_ROOT_PASSWORD` property
-- Set site URL by changing the value of the `PHOTOPRISM_SITE_URL` property to https://photos-admin.example.com
-- Disabled Webdav
-- Added networks :
-
-    ```yaml
-    photoprism:
-      networks:
-        - photoprism-net
-        - traefik-net
-  
-    mariadb:
-      networks:
-        - photoprism-net
-  
-    networks:
-      photoprism-net:
-        name: photoprism-net
-      traefik-net:
-        name: traefik-net
-      external: true
-    ```
-- Added Traefik labels to the photoprism service:
-
-    ```yaml
-    photoprism:
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.photoprism.rule=Host(`photos-admin.example.com`)"
-        - "traefik.http.routers.photoprism.entrypoints=websecure"
-        - "traefik.http.routers.photoprism.tls.certresolver=default"
-        - "traefik.http.services.photoprism.loadbalancer.server.port=2342"
-        - "traefik.docker.network=traefik-net"
-    ```
-
-Start :
-
-```bash
-sudo docker compose up -d
- ```
-
-This will create 2 containers :
-
-- A container holding the **MariaDB** database, not exposed
-- A container holding the application, exposed on port **2342**
 
 ## Chachatte Team
 
@@ -1139,112 +1203,7 @@ Using /1 instead of /0 ensure that it takes precedence over the default /0 route
 
 # Network architecture
 
-```mermaid
-flowchart TB
-    style HOSTING_PROVIDER fill: #4d683b
-    style DDNS_PROVIDER fill: #69587b
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #584444
-    style CONTAINER_ENGINE fill: #6b4646
-    style TRAEFIK_CONTAINER fill: #653f3f
-    style PIHOLE_CONTAINER fill: #653f3f
-    style WIREGUARD_CONTAINER fill: #653f3f
-    style WIREGUARD_UI_CONTAINER fill: #653f3f
-    style UNBOUND_CONTAINER fill: #653f3f
-    style TRAEFIK_ROUTER fill: #806030
-    DOMAIN(example.com)
-    SUBDOMAIN_WIREGUARD(wireguard.example.com)
-    SUBDOMAIN_WIREGUARD_UI(wireguard-ui.example.com)
-    SUBDOMAIN_TRAEFIK(traefik.example.com)
-    SUBDOMAIN_PIHOLE(pihole.example.com)
-    DDNS(myddns.ddns.net)
-    ROUTER[public IP]
-    ROUTER_PORT80{{80/tcp}}
-    ROUTER_PORT443{{443/tcp}}
-    ROUTER_PORT51820{{51820/udp}}
-    DOCKER_WIREGUARD_PORT51820{{51820/udp}}
-    DOCKER_WIREGUARD_UI_PORT51821{{51821/tcp}}
-    DOCKER_PIHOLE_PORT80{{80/tcp}}
-    DOCKER_PIHOLE_PORT53{{53/udp}}
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
-    DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
-    DOCKER_UNBOUND_PORT53{{53/udp}}
-    TRAEFIK_ROUTER_WIREGUARD_UI(wireguard-ui.example.com)
-    TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
-    TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
-    ROOT_DNS_SERVERS[Root DNS servers]
-
-    subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
-        DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
-        DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD_UI
-        DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
-        DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
-    end
-
-    subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
-        SUBDOMAIN_WIREGUARD -->|CNAME| DDNS
-        SUBDOMAIN_WIREGUARD_UI -->|CNAME| DDNS
-        SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
-        SUBDOMAIN_PIHOLE -->|CNAME| DDNS
-    end
-
-    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
-        DDNS -->|DynDNS| ROUTER
-        ROUTER --> ROUTER_PORT80
-        ROUTER --> ROUTER_PORT443
-        ROUTER --> ROUTER_PORT51820
-        DNS[DNS 1]
-    end
-
-    DNS ------>|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
-    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
-    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
-    ROUTER_PORT51820 -->|port forward| DOCKER_WIREGUARD_PORT51820
-
-    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
-        subgraph CONTAINER_ENGINE[DOCKER]
-            subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
-                DOCKER_UNBOUND_PORT53
-            end
-
-            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
-                DOCKER_PIHOLE_PORT80
-                DOCKER_PIHOLE_PORT53
-            end
-
-            DOCKER_PIHOLE_PORT53 <----> DOCKER_UNBOUND_PORT53
-
-            subgraph WIREGUARD_CONTAINER[WIREGUARD CONTAINER]
-                DOCKER_WIREGUARD_PORT51820
-            end
-
-            subgraph WIREGUARD_UI_CONTAINER[WIREGUARD-UI CONTAINER]
-                DOCKER_WIREGUARD_UI_PORT51821
-            end
-
-            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
-                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
-
-                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_TRAEFIK
-                    TRAEFIK_ROUTER_WIREGUARD_UI
-                    TRAEFIK_ROUTER_PIHOLE
-                end
-
-                TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
-                TRAEFIK_ROUTER_WIREGUARD_UI ---> DOCKER_WIREGUARD_UI_PORT51821
-                TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
-
-            end
-
-        end
-
-    end
-
-    UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
-```
+## Without VPN
 
 ```mermaid
 flowchart TB
@@ -1349,6 +1308,8 @@ flowchart TB
     linkStyle 18 stroke-width: 4px, stroke: red
 ```
 
+## With VPN
+
 ```mermaid
 flowchart TB
     style HOSTING_PROVIDER fill: #4d683b
@@ -1362,15 +1323,15 @@ flowchart TB
     style MYAPP_CONTAINER fill: #663535
     style WIREGUARD_CONTAINER fill: #663535
     style TRAEFIK_ROUTER fill: #806030
+    style WIREGUARD_CLIENT fill: #405040
+    
     DOMAIN(example.com)
-%%SUBDOMAIN_WIREGUARD(wireguard.example.com)
+    SUBDOMAIN_WIREGUARD(wireguard.example.com)
     SUBDOMAIN_MYAPP(myapp.example.com)
     SUBDOMAIN_TRAEFIK(traefik.example.com)
     SUBDOMAIN_PIHOLE(pihole.example.com)
     DDNS(myddns.ddns.net)
     ROUTER[public IP]
-    ROUTER_PORT80{{80/tcp}}
-    ROUTER_PORT443{{443/tcp}}
     ROUTER_PORT51820{{51820/udp}}
     DOCKER_WIREGUARD_PORT51820{{51820/udp}}
     DOCKER_MYAPP_PORT5000{{5000/tcp}}
@@ -1386,14 +1347,14 @@ flowchart TB
     ROOT_DNS_SERVERS[Root DNS servers]
 
     subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
-    %%DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
+        DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
         DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
         DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
         DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
     end
 
     subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
-    %%SUBDOMAIN_WIREGUARD -->|CNAME| DDNS
+        SUBDOMAIN_WIREGUARD -->|CNAME| DDNS
         SUBDOMAIN_MYAPP -->|CNAME| DDNS
         SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
         SUBDOMAIN_PIHOLE -->|CNAME| DDNS
@@ -1401,21 +1362,18 @@ flowchart TB
 
     subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
         DDNS -->|DynDNS| ROUTER
-        ROUTER --> ROUTER_PORT80
-        ROUTER --> ROUTER_PORT443
         ROUTER --> ROUTER_PORT51820
         DNS[DNS 1]
     end
 
-    DNS ------>|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
-    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
-    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
+    DNS -->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
     ROUTER_PORT51820 -->|port forward| DOCKER_WIREGUARD_PORT51820
     CLIENT((Client)) --> WIREGUARD_CLIENT
-    WIREGUARD_CLIENT[[Wireguard client]] --> ROUTER
-
+    WIREGUARD_CLIENT[[Wireguard client]] --> SUBDOMAIN_WIREGUARD
+    
     subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
         subgraph CONTAINER_ENGINE[DOCKER]
+            
             subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
                 DOCKER_UNBOUND_PORT53
             end
@@ -1423,20 +1381,25 @@ flowchart TB
             subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
                 DOCKER_PIHOLE_PORT80
                 DOCKER_PIHOLE_PORT53
-            end
 
-            DOCKER_PIHOLE_PORT53 <----> DOCKER_UNBOUND_PORT53
+                subgraph PIHOLE_DNS[Local DNS records]
+                    PIHOLE_DNS_MYAPP[myapp.mysootybox.com]
+                end
+
+            end
+            
+            DOCKER_PIHOLE_PORT53 <---> DOCKER_UNBOUND_PORT53
+
+            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
+                DOCKER_MYAPP_PORT5000
+            end
 
             subgraph WIREGUARD_CONTAINER[WIREGUARD CONTAINER]
                 DOCKER_WIREGUARD_PORT51820
                 DNS_WIREGUARD[DNS]
             end
 
-            DNS_WIREGUARD[DNS] -->|Pi - Hole internal IP| PIHOLE_CONTAINER
-
-            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
-                DOCKER_MYAPP_PORT5000
-            end
+            DNS_WIREGUARD[DNS] -->|Pi - Hole internal IP| PIHOLE_DNS
 
             subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
                 DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
@@ -1448,10 +1411,9 @@ flowchart TB
                     TRAEFIK_ROUTER_PIHOLE
                 end
 
-                TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
-                TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT5000
+                TRAEFIK_ROUTER_TRAEFIK -->|basic auth| DOCKER_TRAEFIK_PORT8080
+                TRAEFIK_ROUTER_MYAPP --> DOCKER_MYAPP_PORT5000
                 TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
-
             end
 
         end
@@ -1459,12 +1421,16 @@ flowchart TB
     end
 
     UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
+    
+    linkStyle 4 stroke-width: 4px, stroke: red
+    linkStyle 8 stroke-width: 4px, stroke: red
     linkStyle 9 stroke-width: 4px, stroke: red
+    linkStyle 11 stroke-width: 4px, stroke: red
+    linkStyle 12 stroke-width: 4px, stroke: red
     linkStyle 13 stroke-width: 4px, stroke: red
-    linkStyle 14 stroke-width: 4px, stroke: red
     linkStyle 15 stroke-width: 4px, stroke: red
     linkStyle 16 stroke-width: 4px, stroke: red
-    linkStyle 17 stroke-width: 4px, stroke: red
+    linkStyle 19 stroke-width: 4px, stroke: red
 ```
 
 1. Forward port 51820 to your Pi's local IP address
