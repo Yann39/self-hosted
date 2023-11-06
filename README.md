@@ -1230,7 +1230,7 @@ flowchart TB
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
-    DOCKER_MYAPP_PORT5000{{5000/tcp}}
+    DOCKER_MYAPP_PORT{{port/tcp}}
     DOCKER_UNBOUND_PORT53{{53/udp}}
     TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
     TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
@@ -1264,7 +1264,7 @@ flowchart TB
     subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
         subgraph CONTAINER_ENGINE[DOCKER]
             subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
-                DOCKER_MYAPP_PORT5000
+                DOCKER_MYAPP_PORT
             end
 
             subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
@@ -1290,8 +1290,7 @@ flowchart TB
 
                 TRAEFIK_ROUTER_TRAEFIK -->|basic auth| DOCKER_TRAEFIK_PORT8080
                 TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
-                TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT5000
-
+                TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT
             end
 
         end
@@ -1308,6 +1307,8 @@ flowchart TB
     linkStyle 18 stroke-width: 4px, stroke: red
 ```
 
+Every request from local network will be forwarded to Pi-hole.
+
 ## With VPN
 
 ```mermaid
@@ -1323,7 +1324,8 @@ flowchart TB
     style MYAPP_CONTAINER fill: #663535
     style WIREGUARD_CONTAINER fill: #663535
     style TRAEFIK_ROUTER fill: #806030
-    style WIREGUARD_CLIENT fill: #405040
+    style WIREGUARD_CLIENT fill: #105040
+    style PIHOLE_DNS_RECORDS fill: #773333
     
     DOMAIN(example.com)
     SUBDOMAIN_WIREGUARD(wireguard.example.com)
@@ -1349,15 +1351,15 @@ flowchart TB
     subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
         DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
         DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
-        DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
         DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
+        DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
     end
 
     subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
         SUBDOMAIN_WIREGUARD -->|CNAME| DDNS
         SUBDOMAIN_MYAPP -->|CNAME| DDNS
-        SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
         SUBDOMAIN_PIHOLE -->|CNAME| DDNS
+        SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
     end
 
     subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
@@ -1366,32 +1368,43 @@ flowchart TB
         DNS[DNS 1]
     end
 
+    subgraph WIREGUARD_CLIENT[WIREGUARD CLIENT]
+        WIREGUARD_CLIENT_ENDPOINT[Endpoint]
+        WIREGUARD_CLIENT_DNS[DNS]
+    end
+
+    CLIENT((Client)) --> WIREGUARD_CLIENT
+    
+    WIREGUARD_CLIENT_ENDPOINT --> SUBDOMAIN_WIREGUARD
+    WIREGUARD_CLIENT_DNS --> DOCKER_PIHOLE_PORT53
+    WIREGUARD_CLIENT ---> SUBDOMAIN_MYAPP
     DNS -->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
     ROUTER_PORT51820 -->|port forward| DOCKER_WIREGUARD_PORT51820
-    CLIENT((Client)) --> WIREGUARD_CLIENT
-    WIREGUARD_CLIENT[[Wireguard client]] --> SUBDOMAIN_WIREGUARD
     
     subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
         subgraph CONTAINER_ENGINE[DOCKER]
-            
-            subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
-                DOCKER_UNBOUND_PORT53
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_PIHOLE
+                    TRAEFIK_ROUTER_TRAEFIK
+                    TRAEFIK_ROUTER_MYAPP
+                end
+
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+                TRAEFIK_ROUTER_TRAEFIK -->|basic auth| DOCKER_TRAEFIK_PORT8080
+                TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
             end
 
             subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
                 DOCKER_PIHOLE_PORT80
                 DOCKER_PIHOLE_PORT53
 
-                subgraph PIHOLE_DNS[Local DNS records]
-                    PIHOLE_DNS_MYAPP[myapp.mysootybox.com]
+                subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
+                    PIHOLE_DNS_MYAPP[myapp.example.com]
                 end
-
-            end
-            
-            DOCKER_PIHOLE_PORT53 <---> DOCKER_UNBOUND_PORT53
-
-            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
-                DOCKER_MYAPP_PORT5000
             end
 
             subgraph WIREGUARD_CONTAINER[WIREGUARD CONTAINER]
@@ -1399,38 +1412,38 @@ flowchart TB
                 DNS_WIREGUARD[DNS]
             end
 
-            DNS_WIREGUARD[DNS] -->|Pi - Hole internal IP| PIHOLE_DNS
-
-            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
-                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
-
-                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_TRAEFIK
-                    TRAEFIK_ROUTER_MYAPP
-                    TRAEFIK_ROUTER_PIHOLE
-                end
-
-                TRAEFIK_ROUTER_TRAEFIK -->|basic auth| DOCKER_TRAEFIK_PORT8080
-                TRAEFIK_ROUTER_MYAPP --> DOCKER_MYAPP_PORT5000
-                TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
+            subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
+                DOCKER_UNBOUND_PORT53
             end
+
+            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
+                DOCKER_MYAPP_PORT5000
+                TRAEFIK_ROUTER_MYAPP --> DOCKER_MYAPP_PORT5000
+            end
+
+            PIHOLE_DNS_MYAPP -->|Banana Pi internal IP| TRAEFIK_CONTAINER
+            DOCKER_PIHOLE_PORT53 <--> DOCKER_UNBOUND_PORT53
+            DNS_WIREGUARD[DNS] ---->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
 
         end
 
     end
 
     UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
-    
+
     linkStyle 4 stroke-width: 4px, stroke: red
+    linkStyle 5 stroke-width: 4px, stroke: red
     linkStyle 8 stroke-width: 4px, stroke: red
     linkStyle 9 stroke-width: 4px, stroke: red
+    linkStyle 10 stroke-width: 4px, stroke: red
     linkStyle 11 stroke-width: 4px, stroke: red
     linkStyle 12 stroke-width: 4px, stroke: red
     linkStyle 13 stroke-width: 4px, stroke: red
     linkStyle 15 stroke-width: 4px, stroke: red
     linkStyle 16 stroke-width: 4px, stroke: red
-    linkStyle 19 stroke-width: 4px, stroke: red
+    linkStyle 20 stroke-width: 4px, stroke: red
+    linkStyle 21 stroke-width: 4px, stroke: red
+    linkStyle 23 stroke-width: 4px, stroke: red
 ```
 
 1. Forward port 51820 to your Pi's local IP address
