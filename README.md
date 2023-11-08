@@ -1,4 +1,4 @@
-<img src="images/header.svg" alt="Header image"/>
+<img src="images/header-with-text.svg" alt="Header image"/>
 
 # Self-hosting guide
 
@@ -12,7 +12,11 @@ It uses only **free** and **open source** software.
 <table>
   <tr>
     <td>
-      <img src="images/logo-open-source-initiative.svg" alt="Android logo" height="128"/>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="images/logo-open-source-initiative.svg" height="128"/>
+        <source media="(prefers-color-scheme: light)" srcset="images/logo-open-source-initiative-black.svg" height="128"/>
+        <img alt="Open-source initiative logo" src="images/logo-open-source-initiative-black.svg" height="128"/>
+      </picture>
     </td>
     <td>
       <img src="images/logo-open-source-hardware.svg" alt="Open source hardware logo" height="128"/>
@@ -69,7 +73,11 @@ These are the tools we are going to run :
 |     <img src="images/logo-phpmyadmin.svg" alt="PhpMyAdmin logo" height="32"/>     | PhpMyAdmin     | https://github.com/phpmyadmin/phpmyadmin    | Web user interface to manage MySQL databases         |
 |          <img src="images/logo-kopia.png" alt="Kopia logo" height="32"/>          | Kopia          | https://github.com/kopia/kopia              | Fast and secure open-source backup/restore tool      |
 
-Yes, all of this runs on a single Banana Pi M5 board !
+And also some personal applications :
+- My first **PHP** / **MySQL** website from the early 2000's !
+- A **GraphQL API** for my **Flutter** mobile application
+
+Yes, all of this runs on a single Banana Pi M5 board ! With the following specifications :
 
 <table>
   <tr>
@@ -88,6 +96,13 @@ Yes, all of this runs on a single Banana Pi M5 board !
     </td>
   </tr>
 </table>
+
+## Architecture
+
+Here is a flow chart representing the global **network architecture** we are going to set up.
+
+We will see later that you can either directly open and forward HTTP and/or HTTPS ports,
+or only the VPN port so that the services are available only through VPN (and from local network).
 
 ```mermaid
 flowchart TB
@@ -254,7 +269,11 @@ You need to format the eMMC storage to be able to install a new system. To do th
       <img src="images/logo-armbian.png" alt="Armbian logo" height="42"/>
     </td>
     <td>
-      <img src="images/logo-microsd.svg" alt="MicroSD logo" height="42"/>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="images/logo-microsd.svg" height="42"/>
+        <source media="(prefers-color-scheme: light)" srcset="images/logo-microsd-black.svg" height="42"/>
+        <img alt="MicroSD logo" src="images/logo-microsd-black.svg" height="42"/>
+      </picture>
     </td>
   </tr>
 </table>
@@ -1326,27 +1345,27 @@ flowchart TB
     style TRAEFIK_ROUTER fill: #806030
     style WIREGUARD_CLIENT fill: #105040
     style PIHOLE_DNS_RECORDS fill: #773333
-    
+    classDef redBorder stroke-width: 3px, stroke: red
     DOMAIN(example.com)
-    SUBDOMAIN_WIREGUARD(wireguard.example.com)
-    SUBDOMAIN_MYAPP(myapp.example.com)
+    SUBDOMAIN_WIREGUARD(wireguard.example.com):::redBorder
+    SUBDOMAIN_MYAPP(myapp.example.com):::redBorder
     SUBDOMAIN_TRAEFIK(traefik.example.com)
     SUBDOMAIN_PIHOLE(pihole.example.com)
-    DDNS(myddns.ddns.net)
-    ROUTER[public IP]
-    ROUTER_PORT51820{{51820/udp}}
-    DOCKER_WIREGUARD_PORT51820{{51820/udp}}
-    DOCKER_MYAPP_PORT5000{{5000/tcp}}
+    DDNS(myddns.ddns.net):::redBorder
+    ROUTER[public IP]:::redBorder
+    ROUTER_PORT51820{{51820/udp}}:::redBorder
+    DOCKER_WIREGUARD_PORT51820{{51820/udp}}:::redBorder
+    DOCKER_MYAPP_PORT5000{{5000/tcp}}:::redBorder
     DOCKER_PIHOLE_PORT80{{80/tcp}}
-    DOCKER_PIHOLE_PORT53{{53/udp}}
+    DOCKER_PIHOLE_PORT53{{53/udp}}:::redBorder
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
-    DOCKER_UNBOUND_PORT53{{53/udp}}
-    TRAEFIK_ROUTER_MYAPP(myapp.example.com)
+    DOCKER_UNBOUND_PORT53{{53/udp}}:::redBorder
+    TRAEFIK_ROUTER_MYAPP(myapp.example.com):::redBorder
     TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
     TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
-    ROOT_DNS_SERVERS[Root DNS servers]
+    ROOT_DNS_SERVERS[Root DNS servers]:::redBorder
 
     subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
         DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
@@ -1365,27 +1384,24 @@ flowchart TB
     subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
         DDNS -->|DynDNS| ROUTER
         ROUTER --> ROUTER_PORT51820
-        DNS[DNS 1]
+        DNS[DNS 1]:::redBorder
     end
 
     subgraph WIREGUARD_CLIENT[WIREGUARD CLIENT]
-        WIREGUARD_CLIENT_ENDPOINT[Endpoint]
-        WIREGUARD_CLIENT_DNS[DNS]
+        WIREGUARD_CLIENT_ENDPOINT[Endpoint]:::redBorder
+        WIREGUARD_CLIENT_DNS[DNS]:::redBorder
     end
 
-    CLIENT((Client)) --> WIREGUARD_CLIENT
-    
+    CLIENT((Client)):::redBorder --> WIREGUARD_CLIENT
     WIREGUARD_CLIENT_ENDPOINT --> SUBDOMAIN_WIREGUARD
     WIREGUARD_CLIENT_DNS --> DOCKER_PIHOLE_PORT53
     WIREGUARD_CLIENT ---> SUBDOMAIN_MYAPP
     DNS -->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
     ROUTER_PORT51820 -->|port forward| DOCKER_WIREGUARD_PORT51820
-    
+
     subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
         subgraph CONTAINER_ENGINE[DOCKER]
-
             subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
-
                 subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
                     TRAEFIK_ROUTER_PIHOLE
                     TRAEFIK_ROUTER_TRAEFIK
@@ -1403,13 +1419,13 @@ flowchart TB
                 DOCKER_PIHOLE_PORT53
 
                 subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
-                    PIHOLE_DNS_MYAPP[myapp.example.com]
+                    PIHOLE_DNS_MYAPP[myapp.example.com]:::redBorder
                 end
             end
 
             subgraph WIREGUARD_CONTAINER[WIREGUARD CONTAINER]
                 DOCKER_WIREGUARD_PORT51820
-                DNS_WIREGUARD[DNS]
+                DNS_WIREGUARD[DNS]:::redBorder
             end
 
             subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
@@ -1430,7 +1446,6 @@ flowchart TB
     end
 
     UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
-
     linkStyle 4 stroke-width: 4px, stroke: red
     linkStyle 5 stroke-width: 4px, stroke: red
     linkStyle 8 stroke-width: 4px, stroke: red
@@ -1448,3 +1463,12 @@ flowchart TB
 
 1. Forward port 51820 to your Pi's local IP address
 2. Set your primary DNS in your DHCP server settings to your Pi's local IP. Leave the secondary DNS blank (remove 195.186.4.192).
+
+# Test with Wireshark
+
+<img src="images/logo-wireshark.svg" alt="Armbian logo" height="64"/>
+
+**Wireshark** is a free and open source tool for profiling **network traffic** and analyzing **packets**.
+It can be used to examine the traffic at a variety of levels ranging from connection-level information to the bits that make up a single packet.
+
+1. Install Wireshark from official website
