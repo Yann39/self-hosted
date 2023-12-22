@@ -19,4 +19,5 @@ certificatesResolvers:
       email: admin@example.com
       storage: acme.json
       caServer: 'https://acme-v02.api.letsencrypt.org/directory'
-      tlsChallenge: {}
+      dnsChallenge:
+        provider: <your_provider_here>
