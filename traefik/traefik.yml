@@ -21,3 +21,6 @@ certificatesResolvers:
       caServer: 'https://acme-v02.api.letsencrypt.org/directory'
       dnsChallenge:
         provider: <your_provider_here>
+
+log:
+  level: info

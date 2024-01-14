@@ -7,6 +7,7 @@ services:
     container_name: homer
     volumes:
       - ./assets/:/www/assets
+    user: 1000:1000
     restart: unless-stopped
     environment:
       - INIT_ASSETS=0

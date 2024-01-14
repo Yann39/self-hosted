@@ -22,6 +22,8 @@ services:
       - STARTUP_DELAY=30
       - ADMIN_USER=admin
       - ADMIN_PASSWORD=password
+      - APP_URL=https://lychee.example.com
+      - TRUSTED_PROXIES=*
     depends_on:
       - lychee-db
     restart: unless-stopped

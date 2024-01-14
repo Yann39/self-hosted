@@ -25,10 +25,10 @@ It uses only **free** and **open source** software and hardware.
 </table>
 
 > [!IMPORTANT]
-> The content of this guide is provided "as is", there is no guarantee that the information is complete or error-free,
+> The content of this repository is provided "as is", there is no guarantee that the information is complete or error-free,
 > nor that it will meet your needs.
 > The techniques and tools discussed here come with inherent risks.
-> I take absolutely no responsibility for possible consequences due to the use of the related software.
+> The author takes absolutely no responsibility for possible consequences due to the use of the related software.
 
 # Table of Content
 
@@ -43,8 +43,8 @@ It uses only **free** and **open source** software and hardware.
 3. [Prepare system](#prepare-system)
     1. [Cleaning](#cleaning)
     2. [Docker & Docker Compose](#docker--docker-compose)
-4. [Prepare network configuration](#prepare-network-configuration)
-    1. [IP settings](#ip-settings) 
+4. [Network configuration](#network-configuration)
+    1. [IP settings](#ip-settings)
     2. [Dynamic DNS](#dynamic-dns)
     3. [Domain and subdomains](#domain-and-subdomains)
     4. [Port forwarding](#port-forwarding)
@@ -72,8 +72,8 @@ I started this project in late 2023 as a **home lab**, for learning, the goal wa
 - **Secure** (authentication, SSL/TLS, reverse proxy, firewall, ad blocking, DDOS protection, rate limiting, custom DNS resolver, ...)
 - **Lightweight** (runs smoothly with minimal hardware and software requirements)
 - **Container-ready** (isolated, portable, scalable applications)
-- **Accessible** (remotely through VPN only)
-- **Supervised** (monitoring, alerting, tracking tools)
+- **Accessible** (some services only locally, some only through VPN, some publicly)
+- **Supervised** (monitoring, alerting, tracking, backup tools)
 
 These are the tools we are going to run :
 
@@ -99,7 +99,7 @@ These are the tools we are going to run :
 And also some personal applications :
 
 - My first **PHP** / **MySQL** website from the early 2000's ! : https://github.com/Yann39/defrag-life
-- A **GraphQL API** for my **Flutter** mobile application : https://github.com/Yann39/chachatte-team
+- A **GraphQL API**  (**Java** / **Spring Boot**) for my **Flutter** mobile application : https://github.com/Yann39/chachatte-team
 
 Yes, all of this runs on a single **Banana Pi M5 board** ! With the following specifications :
 
@@ -123,138 +123,21 @@ Yes, all of this runs on a single **Banana Pi M5 board** ! With the following sp
 
 ## Architecture
 
-Here are 2 flow charts representing the global **network architecture** we are going to set up.
-One describes access **without VPN**, while the other shows access **through VPN**.
-It's up to you to choose the architecture you need, you may want some services to be accessible only from your local network, some only via VPN, and others to anyone.
+Here is a chart representing the global architecture we are going to set up.
 
-We will point the **ISP DNS** (from router configuration) to the Banana Pi **IP address**, to reroute the entire Internet traffic through **Pi-hole**.
+All services will be accessible via a dedicated subdomain.
 
-### Without VPN
+This architecture allows exposing applications to the internet through **reverse proxy** and restrict access to some of them only through **VPN**.
+It's up to you to choose the architecture you need for each service, you may want some to be accessible only from your local network, some only via VPN, and others to anyone.
 
-Without VPN, the **HTTPS** port must be open in your **router**, and **port forwarded**, so that the requests can reach the local network through that port.
-You may also want to open the **HTTP** port, which will be **redirected** to HTTPS
-according to our configuration.
+In this example **Traefik** (traefik.example.com) and **Pihole** (pihole.example.com) will only be accessible through VPN,
+while **Myapp** (myapp.example.com) will be accessible from the internet directly through port 443.
 
-So, once the **resolving name server** got the IP address (yellow dotted line), the request reaches the Banana Pi on port 443 through **dynamic DNS** and is then port forwarded
-to the **reverse proxy** which route it to the target application (red line).
+The point of self-hosting our own VPN server is to ensure a **private** and **secure** connection to our services from the internet.
+Also we don't have to trust third-party VPN providers, and have complete freedom and control over the browsing data.
 
-```mermaid
-flowchart TB
-    style HOSTING_PROVIDER fill: #4d683b
-    style DDNS_PROVIDER fill: #69587b
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
-    style TRAEFIK_CONTAINER fill: #663535
-    style PIHOLE_CONTAINER fill: #663535
-    style UNBOUND_CONTAINER fill: #663535
-    style MYAPP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    DOMAIN(example.com)
-    SUBDOMAIN_TRAEFIK(traefik.example.com)
-    SUBDOMAIN_PIHOLE(pihole.example.com)
-    SUBDOMAIN_MYAPP(myapp.example.com)
-    DDNS(myddns.ddns.net)
-    ROUTER[public IP]
-    ROUTER_PORT80{{80/tcp}}
-    ROUTER_PORT443{{443/tcp}}
-    DOCKER_PIHOLE_PORT80{{80/tcp}}
-    DOCKER_PIHOLE_PORT53{{53/udp}}
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
-    DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
-    DOCKER_MYAPP_PORT{{port/tcp}}
-    DOCKER_UNBOUND_PORT53{{53/udp}}
-    TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
-    TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
-    TRAEFIK_ROUTER_MYAPP(myapp.example.com)
-    ROOT_DNS_SERVERS[Root DNS servers]
-
-    subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
-        DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
-        DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
-        DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
-    end
-
-    subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
-        SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
-        SUBDOMAIN_PIHOLE -->|CNAME| DDNS
-        SUBDOMAIN_MYAPP -->|CNAME| DDNS
-    end
-
-    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
-        DDNS -->|DynDNS| ROUTER
-        ROUTER --> ROUTER_PORT80
-        ROUTER --> ROUTER_PORT443
-        DNS[DNS 1]
-    end
-
-    CLIENT((browser)) <--->|myapp . example . com| LOCAL_DNS_RESOLVER[/local resolver\]
-    LOCAL_DNS_RESOLVER <-->|router local IP address| DNS
-    DNS <------>|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
-    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
-    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
-
-    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
-        subgraph CONTAINER_ENGINE[DOCKER]
-            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
-                DOCKER_MYAPP_PORT
-            end
-
-            subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
-                DOCKER_UNBOUND_PORT53
-            end
-
-            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
-                DOCKER_PIHOLE_PORT80
-                DOCKER_PIHOLE_PORT53
-            end
-
-            DOCKER_PIHOLE_PORT53 <--->|DNS1| DOCKER_UNBOUND_PORT53
-
-            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
-                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
-
-                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_TRAEFIK
-                    TRAEFIK_ROUTER_PIHOLE
-                    TRAEFIK_ROUTER_MYAPP
-                end
-
-                TRAEFIK_ROUTER_TRAEFIK -->|basic auth| DOCKER_TRAEFIK_PORT8080
-                TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
-                TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT
-            end
-
-        end
-
-    end
-
-    UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
-    linkStyle 5 stroke-width: 4px, stroke: red
-    linkStyle 6 stroke-width: 4px, stroke: red
-    linkStyle 8 stroke-width: 4px, stroke: red
-    linkStyle 9 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 10 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 11 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 12 stroke-width: 4px, stroke: red
-    linkStyle 14 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 15 stroke-width: 4px, stroke: red
-    linkStyle 19 stroke-width: 4px, stroke: red
-    linkStyle 20 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-```
-
-### With VPN
-
-If you want to restrict internet access only through **VPN**, then do not open the HTTP and HTTPS ports on the router, only open and port forward the **VPN port** (**51820**).
-
-You will need a **VPN client**, which will resolve the **VPN server** through its **subdomain** (blue and magenta lines).
-
-Once connected, **every request** will go through VPN on port **51820**.
-.
-
-The VPN DNS is pointing to the Banana Pi IP address, so that we reroute the entire VPN traffic through **Pi-hole**.
+Note that we make the **ISP DNS** (from **router** configuration) point to the Banana Pi **IP address**,
+so that we reroute the entire Internet traffic through **Pi-hole** and thus take advantage of its benefits.
 
 ```mermaid
 flowchart TB
@@ -269,15 +152,18 @@ flowchart TB
     style MYAPP_CONTAINER fill: #663535
     style WIREGUARD_CONTAINER fill: #663535
     style TRAEFIK_ROUTER fill: #806030
-    style WIREGUARD_CLIENT fill: #105040
+    style VPN_CLIENT fill: #105040
     style PIHOLE_DNS_RECORDS fill: #806030
     DOMAIN(example.com)
     SUBDOMAIN_WIREGUARD(wireguard.example.com)
     SUBDOMAIN_MYAPP(myapp.example.com)
     SUBDOMAIN_TRAEFIK(traefik.example.com)
     SUBDOMAIN_PIHOLE(pihole.example.com)
+    SUBDOMAIN_3DOTS(...)
     DDNS(myddns.ddns.net)
     ROUTER[public IP]
+    ROUTER_PORT80{{80/tcp}}
+    ROUTER_PORT443{{443/tcp}}
     ROUTER_PORT51820{{51820/udp}}
     DOCKER_WIREGUARD_PORT51820{{51820/udp}}
     DOCKER_MYAPP_PORT5000{{5000/tcp}}
@@ -290,62 +176,73 @@ flowchart TB
     TRAEFIK_ROUTER_MYAPP(myapp.example.com)
     TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
     TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
+    TRAEFIK_ROUTER_3DOTS(...)
     ROOT_DNS_SERVERS[Root DNS servers]
 
-    subgraph WIREGUARD_CLIENT[WIREGUARD CLIENT]
-        WIREGUARD_CLIENT_ENDPOINT[Endpoint]
+    subgraph VPN_CLIENT[VPN CLIENT]
         WIREGUARD_CLIENT_DNS[DNS]
+        WIREGUARD_CLIENT_ENDPOINT[Endpoint]
     end
 
     subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
+        DOMAIN -->|subdomain| SUBDOMAIN_3DOTS
         DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
-        DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
-        DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
         DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
+        DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
+        DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
     end
 
     subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
+        SUBDOMAIN_3DOTS -->|CNAME| DDNS
         SUBDOMAIN_WIREGUARD -->|CNAME| DDNS
-        SUBDOMAIN_MYAPP -->|CNAME| DDNS
-        SUBDOMAIN_PIHOLE -->|CNAME| DDNS
         SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
+        SUBDOMAIN_PIHOLE -->|CNAME| DDNS
+        SUBDOMAIN_MYAPP -->|CNAME| DDNS
     end
 
     subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
         DDNS -->|DynDNS| ROUTER
+        ROUTER --> ROUTER_PORT80
+        ROUTER --> ROUTER_PORT443
         ROUTER --> ROUTER_PORT51820
         DNS[DNS 1]
     end
 
-    CLIENT((Client)) --> WIREGUARD_CLIENT
-    WIREGUARD_CLIENT_ENDPOINT ---> SUBDOMAIN_WIREGUARD
     WIREGUARD_CLIENT_DNS -->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
-    WIREGUARD_CLIENT --> SUBDOMAIN_MYAPP
-    DNS ---->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
-    ROUTER_PORT51820 ---->|port forward| DOCKER_WIREGUARD_PORT51820
+    WIREGUARD_CLIENT_ENDPOINT -----> SUBDOMAIN_WIREGUARD
+    DNS ------>|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
+    ROUTER_PORT51820 -------->|port forward| DOCKER_WIREGUARD_PORT51820
+    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
+    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
 
     subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
         subgraph CONTAINER_ENGINE[DOCKER]
+
+            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
+                DOCKER_PIHOLE_PORT80
+                DOCKER_PIHOLE_PORT53
+                DOCKER_PIHOLE_DNS[DNS1 & 2]
+                
+                subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
+                    PIHOLE_DNS_TRAEFIK[traefik.example.com]
+                    PIHOLE_DNS_PIHOLE[pihole.example.com]
+                    PIHOLE_DNS_MYAPP[myapp.example.com]
+                    PIHOLE_DNS_3DOTS[...]
+                end
+            end
+
             subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
                 subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
                     TRAEFIK_ROUTER_TRAEFIK
                     TRAEFIK_ROUTER_PIHOLE
                     TRAEFIK_ROUTER_MYAPP
+                    TRAEFIK_ROUTER_3DOTS
                 end
 
-                DOCKER_TRAEFIK_PORT443 ---> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
                 DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
-                TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
-                TRAEFIK_ROUTER_PIHOLE ---> DOCKER_PIHOLE_PORT80
-            end
-
-            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
-                DOCKER_PIHOLE_PORT80
-                DOCKER_PIHOLE_PORT53
-
-                subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
-                    PIHOLE_DNS_MYAPP[myapp.example.com]
-                end
+                TRAEFIK_ROUTER_TRAEFIK -->|basic auth| DOCKER_TRAEFIK_PORT8080
+                TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
             end
 
             subgraph WIREGUARD_CONTAINER[WIREGUARD CONTAINER]
@@ -361,28 +258,16 @@ flowchart TB
                 DOCKER_UNBOUND_PORT53
             end
 
-            PIHOLE_DNS_MYAPP ---->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
-            DOCKER_PIHOLE_PORT53 <-->|DNS1| DOCKER_UNBOUND_PORT53
+            PIHOLE_DNS_TRAEFIK -->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
+            PIHOLE_DNS_PIHOLE -->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
+            PIHOLE_DNS_MYAPP -->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
+            DOCKER_PIHOLE_DNS ------> DOCKER_UNBOUND_PORT53
 
         end
 
     end
 
-    UNBOUND_CONTAINER <----> ROOT_DNS_SERVERS
-    linkStyle 4 stroke-width: 4px, stroke: blue
-    linkStyle 5 stroke-width: 4px, stroke: red
-    linkStyle 8 stroke-width: 4px, stroke: magenta
-    linkStyle 9 stroke-width: 4px, stroke: magenta
-    linkStyle 10 stroke-width: 4px, stroke: red
-    linkStyle 11 stroke-width: 4px, stroke: blue
-    linkStyle 12 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 13 stroke-width: 4px, stroke: red
-    linkStyle 15 stroke-width: 4px, stroke: magenta
-    linkStyle 16 stroke-width: 4px, stroke: red
-    linkStyle 20 stroke-width: 4px, stroke: red
-    linkStyle 21 stroke-width: 4px, stroke: red
-    linkStyle 22 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 23 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
+    UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
 ```
 
 # Banana Pi M5 initial setup
@@ -630,8 +515,8 @@ Path:     /usr/libexec/docker/cli-plugins/docker-compose
 ```
 
 > [!NOTE]
-> In this guide I will systematically use latest images (`:latest`tag), so if you want to update to latest in the future,
-> simply pull again the latest images and run again your compose file :
+> In this guide I systematically use latest images (`:latest`tag), but usually you better want to avoid using `:latest` tags in production.
+> Anyway if you use `latest` tags and want to update an image in the future, simply pull it again and rerun your container / compose file, i.e. :
 >
 > ```shell
 > sudo docker-compose pull
@@ -640,7 +525,7 @@ Path:     /usr/libexec/docker/cli-plugins/docker-compose
 >
 > Then remove any old images.
 
-# Prepare network configuration
+# Network configuration
 
 Before installing our services, we need to configure the network, so we can reach our applications from the internet.
 
@@ -700,10 +585,10 @@ every request goes through **Pi-Hole** and use the custom **DNS resolver** (**Un
 When connecting from outside our network (from the internet), we need to know the **public IP address** of our router to connect.
 But as we are getting dynamically-assigned public IP addresses (via **DHCP**), we would need to update the configuration everytime the IP changes, which is very uncomfortable.
 
-Fortunately we can register a **dynamic host record** (DynDNS), and set it in our router configuration so that when the public IP address changes, a call is made to the DynDNS
-service provider to update the record. That way our network will always be reachable from the internet via the **DynDNS** record no matter the IP address.
+Fortunately we can register a **dynamic host record** (DynDNS), and configure it in our router configuration so that when the public IP address changes, a call is made to the
+DynDNS service provider to update the record. That way our network will always be reachable from the internet via the **DynDNS** record no matter the IP address.
 
-So simply register a **dynamic DNS** hostname from a free provider, for example **No-IP**, **DuckDNS**, etc. :
+So, simply register a **dynamic DNS** hostname from a provider (there are free ones), for example **No-IP**, **DuckDNS**, etc. :
 
 - hostname : `myddns.ddns.net`
 - IP / target : _internet box external IP_
@@ -720,15 +605,15 @@ The IP will be updated automatically when a change will be detected.
 
 > [!NOTE]
 > Your ISP may only support some dynamic DNS provider that can be configured in the router, so you may pick one that is supported,
-> else you will simply have to set up an **update client** that will be responsible to regularly check for IP change.
+> else you will have to set up an **update client** that will be responsible to regularly check for IP change.
 
 ## Domain and subdomains
 
 You will need to buy a **domain** from you preferred domain provider, for this guide I will use `example.com`.
 
-I advise you to subscribe to a domain privacy option to hide you personal data. Domain Privacy protects the contact information of the owner of a domain name in the WHOIS
-directory. Normally, this public database is used to verify the availability of a domain name and who it belongs to, but marketing companies and scammers can also exploit it for
-other purposes, like sending spam or identity theft.
+I advise you to also subscribe to a domain privacy option in order to hide you personal data. Domain Privacy protects the contact information of the owner of a domain name in the
+WHOIS directory. Normally, this public database is used to verify the availability of a domain name and who it belongs to, but marketing companies and scammers can also exploit it
+for other purposes, like sending spam or identity theft.
 
 Then we will use **subdomains** to locate each service as a separate website without having to buy a new domain name for each.
 A subdomain is simply a prefix added to the original domain name, it functions as a separate website from its domain.
@@ -763,7 +648,7 @@ It is safe to forward ports on your router as long as you have a **reverse proxy
 
 ### Allow access without VPN
 
-If you decide that the applications must be reachable from the outside directly through **HTTP** or **HTTPS** without any **VPN**,
+If you decide that the applications must be reachable from the outside directly through **HTTP** or **HTTPS** without requiring a **VPN**,
 then simply port forward the related **TCP** ports to the Banana Pi.
 
 Go to your router configuration and add a **port forward rule** for the **TCP** port `80` :
@@ -785,9 +670,9 @@ and `443` (websites must be reachable from the internet to generate the **SSL/TL
 We will configure **Traefik** later to **redirect** HTTP requests to HTTPS.
 But if you prefer you can only open the HTTPS port (if you are going to use Let's encrypt' HTTP challenge, it's enough for the TLS certificates to be generated).
 
-### Allow access only through VPN
+### Allow access through VPN
 
-If you want the applications to be available from the outside **only through VPN**, then simply open the **VPN** port :
+If you want the applications to be available from the outside **through VPN**, then simply open the **VPN** port :
 
 Go to your router configuration and add a **port forward rule** for the **UDP** port `51820` :
 
@@ -796,6 +681,8 @@ Go to your router configuration and add a **port forward rule** for the **UDP** 
 - Target port : `51820`
 - Device : `bananapim5`
 - Protocol : `UDP`
+
+Of course if you want the applications to be available **only through VPN**, then only open the VPN port, remove any opened HTTP/HTTPS port.
 
 > [!WARNING]
 > Note that websites must be reachable from the internet to issue and renew **SSL/TLS** certificates using **Let's Encrypt HTTP challenge**,
@@ -829,9 +716,7 @@ flowchart LR
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
     TRAEFIK_ROUTER_MYAPP(myapp.example.com)
     TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
-
     INCOMING_REQUEST[/INCOMING REQUEST/]
-
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -1087,9 +972,7 @@ flowchart LR
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_PORTAINER_PORT9000{{9000/tcp}}
     TRAEFIK_ROUTER_PORTAINER(portainer.example.com)
-
     INCOMING_REQUEST[/INCOMING REQUEST/]
-
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -1214,9 +1097,7 @@ flowchart LR
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_PHPMYADMIN_PORT80{{80/tcp}}
     TRAEFIK_ROUTER_PHPMYADMIN(phpmyadmin.example.com)
-
     INCOMING_REQUEST[/INCOMING REQUEST/]
-
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -1410,7 +1291,12 @@ Things to notice :
     - a **service** which will point to our container application running on port `3001`
     - an HTTP **router** that will match `dashdot.example.com` URL on our `websecure` **entrypoint** to point to our service
     - a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+    - a **middleware** to whitelist an IP range via the `sourceRange` option which sets the allowed IPs to be the local and VPN client IPs (by using **CIDR** notation)
 - It runs in its own **network** (`dashdot-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
+
+We whitelist the following IPs :
+- `192.168.0.0/24` : The IPs given to any device on our local network
+- `172.28.0.0/16` : The IPs in the Traefik Docker bridge network
 
 ### Run
 
@@ -1590,6 +1476,15 @@ We will install Wireguard, Unbound, Pi-hole.
 **WireGuard** is a free and open-source modern VPN that utilizes state-of-the-art cryptography to securely encapsulates IP packets over UDP, in order to lower the environment
 attack surface.
 
+
+
+chmod 600 /etc/wireguard/wg0.conf
+
+Else in the logs you will se a log :
+Warning: `/config/wg_confs/wg0.conf' is world accessible
+
+This means that the configuration file permissions are too broad as there’s a private key in there, it is better to restrict it.
+
 ## Pi-hole
 
 **Pi-hole** is a network-level ad blocking and internet tracker blocking application.
@@ -1614,7 +1509,14 @@ a-records.conf
 forward-records.conf
 srv-records.conf
 
-You can find the files from the unbound github repository.
+You can find the files from the unbound GitHub repository.
+
+To activate logging, edit the _/etc/unbound/unbound.conf_ configuration file :
+
+```
+verbosity: 1
+log-queries: yes
+```
 
 ## Wireguard
 
@@ -1849,3 +1751,271 @@ todo
 
 - create only wireguard as CNAME at the Provider level, use pihole for others
 - wildcard certificates
+
+
+Here are 2 flow charts representing the global **network architecture** we are going to set up.
+One describes access **without VPN**, while the other shows access **through VPN**.
+It's up to you to choose the architecture you need, or to mix them, you may want some services to be accessible only from your local network, some only via VPN, and others to
+anyone.
+
+In any case we will point the **ISP DNS** (from router configuration) to the Banana Pi **IP address**, to reroute the entire Internet traffic through **Pi-hole**.
+
+The point of self-hosting our own VPN server is to ensure a private and secure connection to our services from the internet.
+That way we don't have to trust third-party VPN providers, and have complete freedom and control over the browsing data.
+Of course as it is self-hosted it will not hide our IP address, but that is not the goal.
+
+### Without VPN
+
+If you go without VPN, the **HTTPS** port must be open in your **router**, and **port forwarded**, so that the requests can reach the local network through that port.
+You may also want to open the **HTTP** port, which will be **redirected** to HTTPS
+according to our configuration.
+
+So, once the **resolving name server** got the IP address (yellow dotted line), the request reaches the Banana Pi on port 443 through **dynamic DNS** and is then port forwarded
+to the **reverse proxy** which route it to the target application (red line).
+
+```mermaid
+flowchart TB
+    style HOSTING_PROVIDER fill: #4d683b
+    style DDNS_PROVIDER fill: #69587b
+    style INTERNET_SERVICE_PROVIDER fill: #205566
+    style SINGLE_BOARD_COMPUTER fill: #665151
+    style CONTAINER_ENGINE fill: #664343
+    style TRAEFIK_CONTAINER fill: #663535
+    style PIHOLE_CONTAINER fill: #663535
+    style UNBOUND_CONTAINER fill: #663535
+    style MYAPP_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    DOMAIN(example.com)
+    SUBDOMAIN_TRAEFIK(traefik.example.com)
+    SUBDOMAIN_PIHOLE(pihole.example.com)
+    SUBDOMAIN_MYAPP(myapp.example.com)
+    DDNS(myddns.ddns.net)
+    ROUTER[public IP]
+    ROUTER_PORT80{{80/tcp}}
+    ROUTER_PORT443{{443/tcp}}
+    DOCKER_PIHOLE_PORT80{{80/tcp}}
+    DOCKER_PIHOLE_PORT53{{53/udp}}
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
+    DOCKER_MYAPP_PORT{{port/tcp}}
+    DOCKER_UNBOUND_PORT53{{53/udp}}
+    TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
+    TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
+    TRAEFIK_ROUTER_MYAPP(myapp.example.com)
+    ROOT_DNS_SERVERS[Root DNS servers]
+
+    subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
+        DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
+        DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
+        DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
+    end
+
+    subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
+        SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
+        SUBDOMAIN_PIHOLE -->|CNAME| DDNS
+        SUBDOMAIN_MYAPP -->|CNAME| DDNS
+    end
+
+    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
+        DDNS -->|DynDNS| ROUTER
+        ROUTER --> ROUTER_PORT80
+        ROUTER --> ROUTER_PORT443
+        DNS[DNS 1]
+    end
+
+    CLIENT((browser)) <--->|myapp . example . com| LOCAL_DNS_RESOLVER[/local resolver\]
+    LOCAL_DNS_RESOLVER <-->|router local IP address| DNS
+    DNS <------>|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
+    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
+    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
+                DOCKER_MYAPP_PORT
+            end
+
+            subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
+                DOCKER_UNBOUND_PORT53
+            end
+
+            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
+                DOCKER_PIHOLE_PORT80
+                DOCKER_PIHOLE_PORT53
+            end
+
+            DOCKER_PIHOLE_PORT53 <--->|DNS1| DOCKER_UNBOUND_PORT53
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_TRAEFIK
+                    TRAEFIK_ROUTER_PIHOLE
+                    TRAEFIK_ROUTER_MYAPP
+                end
+
+                TRAEFIK_ROUTER_TRAEFIK -->|basic auth| DOCKER_TRAEFIK_PORT8080
+                TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
+                TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT
+            end
+
+        end
+
+    end
+
+    UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
+    linkStyle 5 stroke-width: 4px, stroke: red
+    linkStyle 6 stroke-width: 4px, stroke: red
+    linkStyle 8 stroke-width: 4px, stroke: red
+    linkStyle 9 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
+    linkStyle 10 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
+    linkStyle 11 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
+    linkStyle 12 stroke-width: 4px, stroke: red
+    linkStyle 14 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
+    linkStyle 15 stroke-width: 4px, stroke: red
+    linkStyle 19 stroke-width: 4px, stroke: red
+    linkStyle 20 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
+```
+
+### With VPN
+
+If you want to restrict internet access only through **VPN**, then do not open the HTTP and HTTPS ports on the router, only open and port forward the **VPN port** (**51820**).
+
+You will need a **VPN client**, which will resolve the **VPN server** through its **subdomain** (blue and magenta lines).
+
+Once connected, **every request** will go through VPN on port **51820**.
+.
+
+The VPN DNS is pointing to the Banana Pi IP address, so that we reroute the entire VPN traffic through **Pi-hole**.
+
+```mermaid
+flowchart TB
+    style HOSTING_PROVIDER fill: #4d683b
+    style DDNS_PROVIDER fill: #69587b
+    style INTERNET_SERVICE_PROVIDER fill: #205566
+    style SINGLE_BOARD_COMPUTER fill: #665151
+    style CONTAINER_ENGINE fill: #664343
+    style TRAEFIK_CONTAINER fill: #663535
+    style PIHOLE_CONTAINER fill: #663535
+    style UNBOUND_CONTAINER fill: #663535
+    style MYAPP_CONTAINER fill: #663535
+    style WIREGUARD_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    style WIREGUARD_CLIENT fill: #105040
+    style PIHOLE_DNS_RECORDS fill: #806030
+    DOMAIN(example.com)
+    SUBDOMAIN_WIREGUARD(wireguard.example.com)
+    SUBDOMAIN_MYAPP(myapp.example.com)
+    SUBDOMAIN_TRAEFIK(traefik.example.com)
+    SUBDOMAIN_PIHOLE(pihole.example.com)
+    DDNS(myddns.ddns.net)
+    ROUTER[public IP]
+    ROUTER_PORT51820{{51820/udp}}
+    DOCKER_WIREGUARD_PORT51820{{51820/udp}}
+    DOCKER_MYAPP_PORT5000{{5000/tcp}}
+    DOCKER_PIHOLE_PORT80{{80/tcp}}
+    DOCKER_PIHOLE_PORT53{{53/udp}}
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
+    DOCKER_UNBOUND_PORT53{{53/udp}}
+    TRAEFIK_ROUTER_MYAPP(myapp.example.com)
+    TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
+    TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
+    ROOT_DNS_SERVERS[Root DNS servers]
+
+    subgraph WIREGUARD_CLIENT[WIREGUARD CLIENT]
+        WIREGUARD_CLIENT_ENDPOINT[Endpoint]
+        WIREGUARD_CLIENT_DNS[DNS]
+    end
+
+    subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
+        DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
+        DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
+        DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
+        DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
+    end
+
+    subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
+        SUBDOMAIN_WIREGUARD -->|CNAME| DDNS
+        SUBDOMAIN_MYAPP -->|CNAME| DDNS
+        SUBDOMAIN_PIHOLE -->|CNAME| DDNS
+        SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
+    end
+
+    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
+        DDNS -->|DynDNS| ROUTER
+        ROUTER --> ROUTER_PORT51820
+        DNS[DNS 1]
+    end
+
+    CLIENT((Client)) --> WIREGUARD_CLIENT
+    WIREGUARD_CLIENT_ENDPOINT ---> SUBDOMAIN_WIREGUARD
+    WIREGUARD_CLIENT_DNS -->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
+    WIREGUARD_CLIENT --> SUBDOMAIN_MYAPP
+    DNS ---->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
+    ROUTER_PORT51820 ---->|port forward| DOCKER_WIREGUARD_PORT51820
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_TRAEFIK
+                    TRAEFIK_ROUTER_PIHOLE
+                    TRAEFIK_ROUTER_MYAPP
+                end
+
+                DOCKER_TRAEFIK_PORT443 ---> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+                TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
+                TRAEFIK_ROUTER_PIHOLE ---> DOCKER_PIHOLE_PORT80
+            end
+
+            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
+                DOCKER_PIHOLE_PORT80
+                DOCKER_PIHOLE_PORT53
+
+                subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
+                    PIHOLE_DNS_MYAPP[myapp.example.com]
+                end
+            end
+
+            subgraph WIREGUARD_CONTAINER[WIREGUARD CONTAINER]
+                DOCKER_WIREGUARD_PORT51820
+            end
+
+            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
+                DOCKER_MYAPP_PORT5000
+                TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT5000
+            end
+
+            subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
+                DOCKER_UNBOUND_PORT53
+            end
+
+            PIHOLE_DNS_MYAPP ---->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
+            DOCKER_PIHOLE_PORT53 <-->|DNS1| DOCKER_UNBOUND_PORT53
+
+        end
+
+    end
+
+    UNBOUND_CONTAINER <----> ROOT_DNS_SERVERS
+    linkStyle 4 stroke-width: 4px, stroke: blue
+    linkStyle 5 stroke-width: 4px, stroke: red
+    linkStyle 8 stroke-width: 4px, stroke: magenta
+    linkStyle 9 stroke-width: 4px, stroke: magenta
+    linkStyle 10 stroke-width: 4px, stroke: red
+    linkStyle 11 stroke-width: 4px, stroke: blue
+    linkStyle 12 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
+    linkStyle 13 stroke-width: 4px, stroke: red
+    linkStyle 15 stroke-width: 4px, stroke: magenta
+    linkStyle 16 stroke-width: 4px, stroke: red
+    linkStyle 20 stroke-width: 4px, stroke: red
+    linkStyle 21 stroke-width: 4px, stroke: red
+    linkStyle 22 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
+    linkStyle 23 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
+```

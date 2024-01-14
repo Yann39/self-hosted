@@ -40,6 +40,12 @@ services:
     ports:
       - "51820:51820/udp" # port of the wireguard server
     restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Zurich
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
     networks:
       wireguard_net:
         ipv4_address: 10.2.0.3
@@ -55,8 +61,7 @@ services:
   wireguard-ui:
     image: ngoduykhanh/wireguard-ui:latest
     container_name: wireguard-ui
-    depends_on:
-      - wireguard
+    depends_on: [unbound, wireguard]
     cap_add:
       - NET_ADMIN
     # use the network of the 'wireguard' service. this enables to show active clients in the status page
