@@ -17,6 +17,7 @@ services:
       - "traefik.http.routers.portainer.rule=Host(`portainer.example.com`)"
       - "traefik.http.routers.portainer.entrypoints=websecure"
       - "traefik.http.routers.portainer.tls.certresolver=default"
+      - "traefik.http.routers.portainer.middlewares=vpn-whitelist"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
       - "traefik.docker.network=traefik-net"
 

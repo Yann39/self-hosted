@@ -20,13 +20,13 @@ services:
       - "traefik.http.routers.ackee.rule=Host(`ackee.example.com`)"
       - "traefik.http.routers.ackee.entrypoints=websecure"
       - "traefik.http.routers.ackee.tls.certresolver=default"
+      - "traefik.http.routers.ackee.middlewares=corsheaders,vpn-whitelist"
       - "traefik.http.services.ackee.loadbalancer.server.port=3000"
       - "traefik.http.middlewares.corsheaders.headers.accesscontrolallowmethods=GET, POST, PATCH, OPTIONS"
       - "traefik.http.middlewares.corsheaders.headers.accesscontrolallowheaders=Content-Type, Authorization, Time-Zone"
       - "traefik.http.middlewares.corsheaders.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.corsheaders.headers.accesscontrolalloworiginlist=https://quake.example.com"
       - "traefik.http.middlewares.corsheaders.headers.accesscontrolmaxage=3600"
-      - "traefik.http.routers.ackee.middlewares=corsheaders"
       - "traefik.docker.network=traefik-net"
 
   ackee-mongo:

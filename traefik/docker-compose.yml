@@ -45,6 +45,9 @@ services:
       - "traefik.http.routers.api.middlewares=auth"
       - "traefik.http.middlewares.auth.basicauth.usersfile=/credentials.txt"
 
+      # IP whitelist for services to be accessible only through VPN and from the local network, have to be applied on each service configuration that need it
+      - "traefik.http.middlewares.vpn-whitelist.ipwhitelist.sourcerange=192.168.0.0/24, 172.18.0.0/16"
+
 networks:
 
   traefik-net:

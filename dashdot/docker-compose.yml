@@ -16,9 +16,8 @@ services:
       - "traefik.http.routers.dashdot.rule=Host(`dashdot.example.com`)"
       - "traefik.http.routers.dashdot.entrypoints=websecure"
       - "traefik.http.routers.dashdot.tls.certresolver=default"
-      - "traefik.http.services.dashdot.loadbalancer.server.port=3001"
-      - "traefik.http.middlewares.vpn-whitelist.ipwhitelist.sourcerange=192.168.0.0/24, 172.28.0.0/16"
       - "traefik.http.routers.dashdot.middlewares=vpn-whitelist"
+      - "traefik.http.services.dashdot.loadbalancer.server.port=3001"
       - "traefik.docker.network=traefik-net"
 
 networks:

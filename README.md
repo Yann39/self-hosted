@@ -123,15 +123,16 @@ Yes, all of this runs on a single **Banana Pi M5 board** ! With the following sp
 
 ## Architecture
 
-Here is a chart representing the global architecture we are going to set up.
+Here is a chart representing the global "architecture" we are going to set up.
 
-All services will be accessible via a dedicated subdomain.
+Basically all services will be accessible via dedicated subdomains which will point to our local network through **dynamic DNS**,
+then a **reverse proxy** will be responsible for routing the requests to the right application.
 
-This architecture allows exposing applications to the internet through **reverse proxy** and restrict access to some of them only through **VPN**.
+This architecture allows exposing applications to the internet while restricting access to some applications only through **VPN** or from the local network.
 It's up to you to choose the architecture you need for each service, you may want some to be accessible only from your local network, some only via VPN, and others to anyone.
 
-In this example **Traefik** (traefik.example.com) and **Pihole** (pihole.example.com) will only be accessible through VPN,
-while **Myapp** (myapp.example.com) will be accessible from the internet directly through port 443.
+In this example **Traefik** (_traefik.example.com_) and **Pihole** (_pihole.example.com_) will only be accessible through VPN and from local network,
+while **Myapp** (_myapp.example.com_) will also be accessible from the internet directly through port **443**.
 
 The point of self-hosting our own VPN server is to ensure a **private** and **secure** connection to our services from the internet.
 Also we don't have to trust third-party VPN providers, and have complete freedom and control over the browsing data.
@@ -178,71 +179,63 @@ flowchart TB
     TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
     TRAEFIK_ROUTER_3DOTS(...)
     ROOT_DNS_SERVERS[Root DNS servers]
+    DNS_ISP[DNS 1 & 2]
+    DOCKER_PIHOLE_DNS[Upstream DNS 1 & 2]
+    PIHOLE_DNS_PIHOLE[pihole.example.com]
+    PIHOLE_DNS_TRAEFIK[traefik.example.com]
+    PIHOLE_DNS_3DOTS[...]
 
     subgraph VPN_CLIENT[VPN CLIENT]
-        WIREGUARD_CLIENT_DNS[DNS]
         WIREGUARD_CLIENT_ENDPOINT[Endpoint]
+        WIREGUARD_CLIENT_DNS[DNS]
     end
 
     subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
-        DOMAIN -->|subdomain| SUBDOMAIN_3DOTS
-        DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
         DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
         DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
         DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
+        DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
+        SUBDOMAIN_3DOTS
     end
 
     subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
-        SUBDOMAIN_3DOTS -->|CNAME| DDNS
-        SUBDOMAIN_WIREGUARD -->|CNAME| DDNS
-        SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
-        SUBDOMAIN_PIHOLE -->|CNAME| DDNS
-        SUBDOMAIN_MYAPP -->|CNAME| DDNS
+        SUBDOMAIN_TRAEFIK --->|CNAME| DDNS
+        SUBDOMAIN_PIHOLE --->|CNAME| DDNS
+        SUBDOMAIN_MYAPP --->|CNAME| DDNS
+        SUBDOMAIN_WIREGUARD --->|CNAME| DDNS
     end
 
     subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
-        DDNS -->|DynDNS| ROUTER
+        DDNS <--->|DynDNS| ROUTER
         ROUTER --> ROUTER_PORT80
         ROUTER --> ROUTER_PORT443
         ROUTER --> ROUTER_PORT51820
-        DNS[DNS 1]
+        DNS_ISP
     end
-
-    WIREGUARD_CLIENT_DNS -->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
-    WIREGUARD_CLIENT_ENDPOINT -----> SUBDOMAIN_WIREGUARD
-    DNS ------>|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
-    ROUTER_PORT51820 -------->|port forward| DOCKER_WIREGUARD_PORT51820
-    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
-    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
 
     subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
         subgraph CONTAINER_ENGINE[DOCKER]
-
-            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
-                DOCKER_PIHOLE_PORT80
-                DOCKER_PIHOLE_PORT53
-                DOCKER_PIHOLE_DNS[DNS1 & 2]
-                
-                subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
-                    PIHOLE_DNS_TRAEFIK[traefik.example.com]
-                    PIHOLE_DNS_PIHOLE[pihole.example.com]
-                    PIHOLE_DNS_MYAPP[myapp.example.com]
-                    PIHOLE_DNS_3DOTS[...]
-                end
-            end
-
             subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
                 subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
                     TRAEFIK_ROUTER_TRAEFIK
-                    TRAEFIK_ROUTER_PIHOLE
                     TRAEFIK_ROUTER_MYAPP
+                    TRAEFIK_ROUTER_PIHOLE
                     TRAEFIK_ROUTER_3DOTS
                 end
+                DOCKER_TRAEFIK_PORT80
+                DOCKER_TRAEFIK_PORT443
+                DOCKER_TRAEFIK_PORT8080
+            end
 
-                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
-                TRAEFIK_ROUTER_TRAEFIK -->|basic auth| DOCKER_TRAEFIK_PORT8080
-                TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
+            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
+                subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
+                    PIHOLE_DNS_TRAEFIK
+                    PIHOLE_DNS_PIHOLE
+                    PIHOLE_DNS_3DOTS
+                end
+                DOCKER_PIHOLE_PORT53
+                DOCKER_PIHOLE_PORT80
+                DOCKER_PIHOLE_DNS
             end
 
             subgraph WIREGUARD_CONTAINER[WIREGUARD CONTAINER]
@@ -251,24 +244,34 @@ flowchart TB
 
             subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
                 DOCKER_MYAPP_PORT5000
-                TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT5000
             end
 
             subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
                 DOCKER_UNBOUND_PORT53
             end
 
-            PIHOLE_DNS_TRAEFIK -->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
-            PIHOLE_DNS_PIHOLE -->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
-            PIHOLE_DNS_MYAPP -->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
-            DOCKER_PIHOLE_DNS ------> DOCKER_UNBOUND_PORT53
-
         end
 
     end
 
+    WIREGUARD_CLIENT_ENDPOINT ---> SUBDOMAIN_WIREGUARD
+    WIREGUARD_CLIENT_DNS -->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
+    DNS_ISP -->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
+    ROUTER_PORT51820 -->|port forward| DOCKER_WIREGUARD_PORT51820
+    ROUTER_PORT443 ---->|port forward| DOCKER_TRAEFIK_PORT443
+    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
+    PIHOLE_DNS_TRAEFIK --->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
+    PIHOLE_DNS_PIHOLE --->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
+    TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT5000
+    TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
+    TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
+    DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+    DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+    DOCKER_PIHOLE_DNS --> DOCKER_UNBOUND_PORT53
     UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
 ```
+
+You will find more details on how all this has been implemented later in this guide.
 
 # Banana Pi M5 initial setup
 
@@ -648,7 +651,7 @@ It is safe to forward ports on your router as long as you have a **reverse proxy
 
 ### Allow access without VPN
 
-If you decide that the applications must be reachable from the outside directly through **HTTP** or **HTTPS** without requiring a **VPN**,
+If you decide that at least one of the applications must be reachable from the outside directly through **HTTP** or **HTTPS** without requiring a **VPN**,
 then simply port forward the related **TCP** ports to the Banana Pi.
 
 Go to your router configuration and add a **port forward rule** for the **TCP** port `80` :
@@ -672,7 +675,7 @@ But if you prefer you can only open the HTTPS port (if you are going to use Let'
 
 ### Allow access through VPN
 
-If you want the applications to be available from the outside **through VPN**, then simply open the **VPN** port :
+If you want some applications to be available from the outside **through VPN**, then simply open the **VPN** port :
 
 Go to your router configuration and add a **port forward rule** for the **UDP** port `51820` :
 
@@ -685,10 +688,11 @@ Go to your router configuration and add a **port forward rule** for the **UDP** 
 Of course if you want the applications to be available **only through VPN**, then only open the VPN port, remove any opened HTTP/HTTPS port.
 
 > [!WARNING]
-> Note that websites must be reachable from the internet to issue and renew **SSL/TLS** certificates using **Let's Encrypt HTTP challenge**,
-> So if your DNS provider does not support DNS challenge, then you will have to open the HTTPS port at least when issuing/renewing certificates.
-> Or you could open only the ports and restrict them to only the required IP ranges, if your router supports that.
-> If you really want to have only the VPN port open, you have to configure DNS challenge instead of HTTP challenge.
+> Note that if you use Let's Encrypt' **HTTP challenge** to issue and renew **SSL/TLS certificates**, websites must be reachable from the internet.
+> That mean you will have to open the HTTP(S) port at least when issuing/renewing certificates,
+> or you could open only the ports and restrict them to the necessary IP ranges, if your router supports that.
+> If you really don't want to open HTTP(S) ports, then you will have to configure **DNS challenge** instead of HTTP challenge, if your DNS provider support it.
+> See [HTTP challenge](#http-challenge) and [DNS challenge](#dns-challenge) below for **Traefik** configuration.
 
 # Install tools
 
@@ -836,6 +840,9 @@ certificatesResolvers:
       caServer: 'https://acme-v02.api.letsencrypt.org/directory'
       dnsChallenge:
         provider: <your_provider_here>
+
+log:
+  level: info
 ```
 
 Basically it :
@@ -845,6 +852,7 @@ Basically it :
 - defines a `docker` provider so that we can use **container labels** to retrieve routing configuration. We have configured it to **not** expose containers by default, so
   that containers that do not have a `traefik.enable=true` label are ignored from the resulting routing configuration
 - defines a `default` **certificate resolver** for Let's Encrypt to automatically generate certificates (requested through **HTTP Challenge**)
+- set log level to `info` (you can set it to `debug` when checking your installation)
 
 #### Service definition :
 
@@ -898,6 +906,9 @@ services:
       - "traefik.http.routers.api.middlewares=auth"
       - "traefik.http.middlewares.auth.basicauth.usersfile=/credentials.txt"
 
+      # IP whitelist for services to be accessible only through VPN and from the local network, have to be applied on each service configuration that need it
+      - "traefik.http.middlewares.vpn-whitelist.ipwhitelist.sourcerange=192.168.0.0/24, 172.18.0.0/16"
+
 networks:
 
   traefik-net:
@@ -908,11 +919,22 @@ Basically it :
 
 - exposes ports `80` and `443` to receive incoming HTTP/HTTPS requests
 - defines a `traefik-net` **network** (which will have to be shared with the services that will use Traefik)
+- defines an environment variable to hold the DNS provider access token to be able to issue Let's Encrypt certificates through DNS challenge
 - defines an HTTP **router** that will match `traefik.example.com` URL on our `websecure` **entrypoint** to point to our service
 - defines `httpsonly` **router** and **middleware** responsible for automatically redirecting HTTP requests to HTTPS
-- defines an environment variable to hold the DNS provider access token to be able to issue Let's Encrypt certificates through DNS challenge
 - configures `dashboard` and `api` routers to use secure HTTPS endpoint with our certificate resolver to generate related Let's Encrypt certificates
 - secures dashboard and API endpoints by defining a `auth` middleware that will handle basic authentication (from _credentials.txt_ file)
+- defines a `vpn-whitelist` **middleware** responsible for whitelisting IPs, so that it can be used by services that will be exposed to the internet to allow only local traffic and
+  VPN traffic
+
+> [!NOTE]
+> For IP whitelist, we allow 2 IP ranges :
+> - The local IP range : IPs assigned to the devices on your local network (computer, mobile devices, ...)
+> - The Traefik Docker bridge network IP range : IPs assigned by Docker to any container in the Traefik network
+> 
+> Requests from the local network will come with a local address assigned by the router DHCP, and will be accepted.
+> Requests from the internet through VPN will go through PiHole and be redirected to Traefik and thus come with a Traefik Docker network assigned IP address, and will be accepted.
+> Requests from the internet without VPN will come with the public IP address and will be rejected as it will not match any whitelisted address.
 
 ### Generate basic authentication credentials
 
@@ -1295,6 +1317,7 @@ Things to notice :
 - It runs in its own **network** (`dashdot-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
 
 We whitelist the following IPs :
+
 - `192.168.0.0/24` : The IPs given to any device on our local network
 - `172.28.0.0/16` : The IPs in the Traefik Docker bridge network
 
@@ -1475,8 +1498,6 @@ We will install Wireguard, Unbound, Pi-hole.
 
 **WireGuard** is a free and open-source modern VPN that utilizes state-of-the-art cryptography to securely encapsulates IP packets over UDP, in order to lower the environment
 attack surface.
-
-
 
 chmod 600 /etc/wireguard/wg0.conf
 
@@ -1751,7 +1772,6 @@ todo
 
 - create only wireguard as CNAME at the Provider level, use pihole for others
 - wildcard certificates
-
 
 Here are 2 flow charts representing the global **network architecture** we are going to set up.
 One describes access **without VPN**, while the other shows access **through VPN**.

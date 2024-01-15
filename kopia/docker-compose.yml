@@ -39,6 +39,7 @@ services:
       - "traefik.http.routers.kopia.rule=Host(`kopia.example.com`)"
       - "traefik.http.routers.kopia.entrypoints=websecure"
       - "traefik.http.routers.kopia.tls.certresolver=default"
+      - "traefik.http.routers.kopia.middlewares=vpn-whitelist"
       - "traefik.http.services.kopia.loadbalancer.server.port=51515"
       - "traefik.docker.network=traefik-net"
 

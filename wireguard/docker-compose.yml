@@ -55,6 +55,7 @@ services:
       - "traefik.http.routers.wireguard-ui.rule=Host(`wireguard-ui.example.com`)"
       - "traefik.http.routers.wireguard-ui.entrypoints=websecure"
       - "traefik.http.routers.wireguard-ui.tls.certresolver=default"
+      - "traefik.http.routers.wireguard-ui.middlewares=vpn-whitelist"
       - "traefik.http.services.wireguard-ui.loadbalancer.server.port=5000"
       - "traefik.docker.network=traefik-net"
 
@@ -100,6 +101,7 @@ services:
       - "traefik.http.routers.pihole.rule=Host(`pihole.example.com`)"
       - "traefik.http.routers.pihole.entrypoints=websecure"
       - "traefik.http.routers.pihole.tls.certresolver=default"
+      - "traefik.http.routers.pihole.middlewares=vpn-whitelist"
       - "traefik.http.services.pihole.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik-net"
     dns:

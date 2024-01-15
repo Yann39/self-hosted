@@ -16,6 +16,7 @@ services:
       - "traefik.http.routers.uptime-kuma.rule=Host(`uptime-kuma.example.com`)"
       - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
       - "traefik.http.routers.uptime-kuma.tls.certresolver=default"
+      - "traefik.http.routers.uptime-kuma.middlewares=vpn-whitelist"
       - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
       - "traefik.docker.network=traefik-net"
 
