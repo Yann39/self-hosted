@@ -25,8 +25,7 @@ It uses only **free** and **open source** software and hardware.
 </table>
 
 > [!IMPORTANT]
-> The content of this repository is provided "as is", there is no guarantee that the information is complete or error-free,
-> nor that it will meet your needs.
+> The content of this repository is provided "as is", with no guarantee that the information is complete or error-free.
 > The techniques and tools discussed here come with inherent risks.
 > The author takes absolutely no responsibility for possible consequences due to the use of the related software.
 
@@ -41,26 +40,26 @@ It uses only **free** and **open source** software and hardware.
     3. [Install Armbian on the MicroSD](#install-armbian-on-the-microsd)
     4. [Install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage)
 3. [Prepare system](#prepare-system)
-    1. [Cleaning](#cleaning)
-    2. [Docker & Docker Compose](#docker--docker-compose)
+    1. [User](#user)
+    2. [Cleaning](#cleaning)
+    3. [Directory structure](#directory-structure)
+    4. [Docker & Docker Compose](#docker--docker-compose)
 4. [Network configuration](#network-configuration)
     1. [IP settings](#ip-settings)
     2. [Dynamic DNS](#dynamic-dns)
     3. [Domain and subdomains](#domain-and-subdomains)
     4. [Port forwarding](#port-forwarding)
-5. [Install tools](#install-tools)
-    1. [Traefik](#traefik)
-    2. [Portainer](#portainer)
-    3. [PhpMyAdmin](#phpmyadmin)
-6. [Install services](#install-services)
-    1. [Homer](#homer)
-    2. [Dashdot](#dashdot)
-    3. [Uptime Kuma](#uptime-kuma)
-    4. [Ackee](#ackee)
-7. [Install applications](#install-applications)
-    1. [Defrag-life](#defrag-life)
-    2. [Chachatte Team API](#chachatte-team-api)
-8. [Add VPN with ad blocking and DNS caching](#add-vpn-with-ad-blocking-and-dns-caching)
+    5. [VPN and ad-blocking](#vpn-and-ad-blocking)
+    6. [Reverse proxy](#reverse-proxy)
+5. [Install services](#install-services)
+    1. [Portainer](#portainer)
+    2. [PhpMyAdmin](#phpmyadmin)
+    3. [Homer](#homer)
+    4. [Dashdot](#dashdot)
+    5. [Uptime Kuma](#uptime-kuma)
+    6. [Ackee](#ackee)
+    7. [Defrag-life](#defrag-life)
+    8. [Chachatte Team API](#chachatte-team-api)
 
 # Overview
 
@@ -121,24 +120,17 @@ Yes, all of this runs on a single **Banana Pi M5 board** ! With the following sp
   </tr>
 </table>
 
+> [!NOTE]
+> This hardware is obviously not designed for high loads,
+> I only have a few users on my public applications,
+> of course if you need to handle more load you might consider a better machine.
+
 ## Architecture
 
 Here is a chart representing the global "architecture" we are going to set up.
 
-Basically all services will be accessible via dedicated subdomains which will point to our local network through **dynamic DNS**,
-then a **reverse proxy** will be responsible for routing the requests to the right application.
-
-This architecture allows exposing applications to the internet while restricting access to some applications only through **VPN** or from the local network.
+This architecture allows exposing applications to the internet while restricting access to some only through a **VPN** or from the local network.
 It's up to you to choose the architecture you need for each service, you may want some to be accessible only from your local network, some only via VPN, and others to anyone.
-
-In this example **Traefik** (_traefik.example.com_) and **Pihole** (_pihole.example.com_) will only be accessible through VPN and from local network,
-while **Myapp** (_myapp.example.com_) will also be accessible from the internet directly through port **443**.
-
-The point of self-hosting our own VPN server is to ensure a **private** and **secure** connection to our services from the internet.
-Also we don't have to trust third-party VPN providers, and have complete freedom and control over the browsing data.
-
-Note that we make the **ISP DNS** (from **router** configuration) point to the Banana Pi **IP address**,
-so that we reroute the entire Internet traffic through **Pi-hole** and thus take advantage of its benefits.
 
 ```mermaid
 flowchart TB
@@ -180,7 +172,7 @@ flowchart TB
     TRAEFIK_ROUTER_3DOTS(...)
     ROOT_DNS_SERVERS[Root DNS servers]
     DNS_ISP[DNS 1 & 2]
-    DOCKER_PIHOLE_DNS[Upstream DNS 1 & 2]
+    DOCKER_PIHOLE_DNS[DNS 1 & 2]
     PIHOLE_DNS_PIHOLE[pihole.example.com]
     PIHOLE_DNS_TRAEFIK[traefik.example.com]
     PIHOLE_DNS_3DOTS[...]
@@ -271,6 +263,15 @@ flowchart TB
     UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
 ```
 
+Basically all services will be accessible via dedicated subdomains which will point to our local network through **dynamic DNS**,
+then a **reverse proxy** will be responsible for routing the requests to the right application running in **Docker** containers.
+
+In this example **Traefik** (_traefik.example.com_) and **Pihole** (_pihole.example.com_) are only accessible through VPN and from the local network,
+while **Myapp** (_myapp.example.com_) will also be accessible from the internet publicly (no need for VPN).
+
+Note that we make the ISP upstream **DNS** (from **router** configuration) point to the Banana Pi **IP address**,
+so that we reroute the entire Internet traffic through **Pi-hole** and thus take advantage of its benefits.
+
 You will find more details on how all this has been implemented later in this guide.
 
 # Banana Pi M5 initial setup
@@ -279,7 +280,7 @@ You will find more details on how all this has been implemented later in this gu
 
 By default, there is no system installed on the Banana Pi.
 We have to install a system either on the **MicroSD** card or on the **eMMC** storage.
-eMMC storage offers better performance but is limited to **16Gb**, it should be enough for our needs though.
+The eMMC storage offers better performance but is limited to **16Gb**, it should be enough for our needs though.
 
 I will describe below the procedures to install a system on the MicroSD card and on the eMMC storage.
 
@@ -384,6 +385,19 @@ We will install Armbian in the eMMC storage, this setup will offer the best perf
 
 # Prepare system
 
+## User
+
+When installing **Armbian**, you should have been asked to create a **regular user account** that is **sudo** enabled.
+We will just use that user for the whole guide.
+
+For security reasons, do not use the `root` user directly.
+If you run a program as root and a security flaw is exploited, the attacker has access to the whole system without restriction.
+It is also safer in case you unintentionally issue a command that could hurt the system (like deleting system files, etc.).
+
+Using a regular user, even with sudo enabled, will require running `sudo` and will still prompt for the account password as an additional security step.
+
+We may also create specific users inside Docker containers for some applications, specially when creating our own **Dockerfile**.
+
 ## Cleaning
 
 **Armbian** come with default installed software that we will not use. If, like me, you chose the GUI image, let's remove some packages to save disk space.
@@ -464,6 +478,31 @@ You can also use the **BleachBit** utility, installed by default on Armbian, to 
 
 All of this should have saved some megabytes and unnecessary disk I/O.
 
+## Directory structure
+
+We will place every application configuration into the _/opt/apps_ directory, as follows :
+
+ ```
+ /
+ |- opt
+     |- apps
+         |- traefik
+         |- portainer
+         |- phpmyadmin
+         |- dashdot
+         |- ...
+ ```
+
+But feel free to choose another location.
+
+You can already create the directory :
+
+```shell
+sudo mkdir /opt/apps
+```
+
+We will create the subdirectories associated with each application when we install them.
+
 ## Docker & Docker Compose
 
 <table>
@@ -537,7 +576,7 @@ The idea is to have :
 - A main **domain** name
 - A **subdomain** name for each application that must be reachable from the internet
 - A **dynamic DNS** name to avoid having to use a **static** public IP address
-- A **Traefik** reverse proxy that will handle HTTP request that will be port forwarded to the Banana Pi
+- A **Traefik** reverse proxy to handle HTTP request that will be port forwarded to the applications
 
 ```mermaid
 flowchart LR
@@ -570,9 +609,9 @@ flowchart LR
 ```
 
 > [!NOTE]
-> My router offers all the required features (DHCP server, DNS server, port forwarding, dyndns, etc.) for the steps described below.
+> My router offers all the required features (DHCP server, DNS server, port forwarding, dynDNS, etc.) for the steps described below.
 > Most of the routers also have those features (they rarely purely route packets),
-> but if this is not your case, you may have to perform **double NAT** to allow advanced configurations.
+> but if this is not your case, you may have to perform **double NAT** to allow more advanced configurations.
 > I obviously cannot go through the configuration specific to each router.
 
 ## IP settings
@@ -583,18 +622,21 @@ every request goes through **Pi-Hole** and use the custom **DNS resolver** (**Un
 - Assign a **static IP address** to the Banana Pi board, for example `192.168.0.16` (I have local **DHCP** enabled)
 - Set **DNS** (primary and secondary) manually, to point to the Banana Pi board address set up above (`192.168.0.16`)
 
+Of course Pi-Hole container have to expose port **53** to receive incoming DNS requests. Refer to [Pi-hole](#pi-hole) setup for more details.
+
 ## Dynamic DNS
 
-When connecting from outside our network (from the internet), we need to know the **public IP address** of our router to connect.
-But as we are getting dynamically-assigned public IP addresses (via **DHCP**), we would need to update the configuration everytime the IP changes, which is very uncomfortable.
+When connecting from outside our network (from the internet), we need to know the **public IP address** of our router to connect to.
+But unless we have a **static** public IP (not necessarily the safest option), we are getting dynamically-assigned public IP addresses (via **DHCP**),
+so we would need to update the configuration everytime the IP changes, which is very uncomfortable.
 
 Fortunately we can register a **dynamic host record** (DynDNS), and configure it in our router configuration so that when the public IP address changes, a call is made to the
 DynDNS service provider to update the record. That way our network will always be reachable from the internet via the **DynDNS** record no matter the IP address.
 
-So, simply register a **dynamic DNS** hostname from a provider (there are free ones), for example **No-IP**, **DuckDNS**, etc. :
+Well, simply register a **dynamic DNS** hostname from a provider (there are free ones), for example **No-IP**, **DuckDNS**, etc. :
 
 - hostname : `myddns.ddns.net`
-- IP / target : _internet box external IP_
+- IP / target : _internet box external IP (public IP)_
 - type : `A`
 
 Then activate **DynDNS** on the router :
@@ -607,21 +649,23 @@ Then activate **DynDNS** on the router :
 The IP will be updated automatically when a change will be detected.
 
 > [!NOTE]
-> Your ISP may only support some dynamic DNS provider that can be configured in the router, so you may pick one that is supported,
+> Your ISP may only support some dynamic DNS provider that can be configured in the router, so you may want to pick one that is supported natively,
 > else you will have to set up an **update client** that will be responsible to regularly check for IP change.
 
 ## Domain and subdomains
 
 You will need to buy a **domain** from you preferred domain provider, for this guide I will use `example.com`.
 
-I advise you to also subscribe to a domain privacy option in order to hide you personal data. Domain Privacy protects the contact information of the owner of a domain name in the
-WHOIS directory. Normally, this public database is used to verify the availability of a domain name and who it belongs to, but marketing companies and scammers can also exploit it
+I advise you to also subscribe to a **domain privacy** option in order to hide you personal data. Domain Privacy protects the contact information of the owner of a domain name in
+the
+**WHOIS directory**. Normally, this public database is used to verify the availability of a domain name and who it belongs to, but marketing companies and scammers can also exploit
+it
 for other purposes, like sending spam or identity theft.
 
-Then we will use **subdomains** to locate each service as a separate website without having to buy a new domain name for each.
+Right, we will then use **subdomains** to locate each service as a separate website to avoid having to buy a new domain name for each.
 A subdomain is simply a prefix added to the original domain name, it functions as a separate website from its domain.
 
-So create **subdomains** from the domain name registrar settings, for every service to be exposed on the internet  :
+So, let's create **subdomains** from the domain name registrar settings, for every service to be exposed on the internet, i.e. :
 
 - `traefik.example.com` : To access the [Traefik](#traefik) dashboard
 - `portainer.example.com` : To access the [Portainer](#portainer) application
@@ -662,7 +706,7 @@ Go to your router configuration and add a **port forward rule** for the **TCP** 
 - Device : `bananapim5`
 - Protocol : `TCP`
 
-and `443` (websites must be reachable from the internet to generate the **SSL/TLS** certificates using **Let's Encrypt HTTP challenge**) :
+and `443` :
 
 - Name : `Traefik SSL`
 - Input port : `443`
@@ -671,7 +715,8 @@ and `443` (websites must be reachable from the internet to generate the **SSL/TL
 - Protocol : `TCP`
 
 We will configure **Traefik** later to **redirect** HTTP requests to HTTPS.
-But if you prefer you can only open the HTTPS port (if you are going to use Let's encrypt' HTTP challenge, it's enough for the TLS certificates to be generated).
+But if you prefer you can only open the HTTPS port (if you are going to use Let's encrypt' **HTTP challenge**,
+it's enough for the TLS certificates to be generated, see the warning box a little further below).
 
 ### Allow access through VPN
 
@@ -685,25 +730,213 @@ Go to your router configuration and add a **port forward rule** for the **UDP** 
 - Device : `bananapim5`
 - Protocol : `UDP`
 
-Of course if you want the applications to be available **only through VPN**, then only open the VPN port, remove any opened HTTP/HTTPS port.
+Of course if you want the applications to be available **only through VPN**, then only open the VPN port, remove any open HTTP/HTTPS port.
 
 > [!WARNING]
-> Note that if you use Let's Encrypt' **HTTP challenge** to issue and renew **SSL/TLS certificates**, websites must be reachable from the internet.
+> Note that if you use Let's Encrypt' **HTTP challenge** to issue and renew **SSL/TLS certificates**, target websites must be reachable from the internet.
 > That mean you will have to open the HTTP(S) port at least when issuing/renewing certificates,
-> or you could open only the ports and restrict them to the necessary IP ranges, if your router supports that.
-> If you really don't want to open HTTP(S) ports, then you will have to configure **DNS challenge** instead of HTTP challenge, if your DNS provider support it.
-> See [HTTP challenge](#http-challenge) and [DNS challenge](#dns-challenge) below for **Traefik** configuration.
+> you could also keep them open and restrict access to the necessary IP ranges, if your router supports that.
+> If you really don't want to open HTTP(S) ports (better for security), then you will have to configure **DNS challenge** instead of HTTP challenge,
+> if your DNS provider support it.
+> See [HTTP challenge](#http-challenge) and [DNS challenge](#dns-challenge) below when configuring **Traefik**.
 
-# Install tools
+## VPN and ad-blocking
 
-## Traefik
+<table>
+  <tr>
+    <td>
+      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="128"/>
+    </td>
+    <td>
+      <img src="images/logo-pihole.svg" alt="Pi-Hole logo" height="128"/>
+    </td>
+    <td>
+      <img src="images/logo-unbound.svg" alt="Unbound logo" height="128"/>
+    </td>
+  </tr>
+</table>
+
+We will install **Wireguard**, **Pi-hole** and **Unbound** to create a virtual private network with ad-blocking and DNS privacy/caching capabilities.
+
+We will also install **Wireguard-UI** which provide a GUI for easier Wireguard configuration and monitoring.
+
+The point of self-hosting our own VPN server is to ensure a **private** and **secure** connection to our services from the internet.
+Also we don't have to trust third-party VPN providers, and have complete freedom and control over the browsing data.
+
+We will use a single **Compose** file to set up the 3 services as they are tightly linked.
+
+### Setup
+
+First, create a folder to hold data and configuration :
+
+```bash
+sudo mkdir /opt/apps/wireguard
+```
+
+Then from this project's _wireguard_ directory, copy into the _/opt/apps/wireguard_ directory :
+
+- the _.env_ file which holds some environment variables to be used in the Compose file
+- the _docker-compose.yml_ file which contains all the Docker services configuration
+
+### Run
+
+Simply run the Compose file :
+
+```bash
+sudo docker-compose -f /opt/apps/wireguard/docker_compose.yml up -d
+```
+
+You should end-up with **4** running containers :
+
+- wireguard
+- wireguard-ui
+- pihole
+- unbound
+
+It should also have generated the needed Let's Encrypt certificates in the _acme.json_ file.
+
+Unbound is not exposed but you can reach :
+
+- the VPN server at https://wireguard.example.com and its GUI at https://wireguard-ui.example.com
+- Pi-Hole at https://pihole.example.com
+
+More detail about each service below.
+
+### Wireguard
+
+<img src="images/logo-wireguard.svg" alt="Wireguard logo" height="128"/>
+
+**WireGuard** is a free and open-source modern VPN that utilizes state-of-the-art cryptography to securely encapsulates IP packets over UDP, in order to lower the environment
+attack surface.
+
+After installation, it is recommended to change the permissions of the _wg0.conf_ file :
+```shell
+chmod 600 /etc/wireguard/wg0.conf
+```
+
+else in the logs you will see a log :
+
+> Warning: `/config/wg_confs/wg0.conf' is world accessible
+
+which means that the configuration file permissions are too broad as there’s a private key in there, so it is better to restrict it.
+
+Create a new client from Wireguard UI :
+`Yann-home-desktop`
+export file
+install Wireguard client on client machine
+load file from client
+
+### Wireguard UI
+
+In Global settings :
+- set **endpoint** address to `wireguard.example.com`
+- set **DNS server** to `10.2.0.100` (Pi hole) instead of `1.1.1.1` (Cloudflare)
+
+In Wireguard Server settings :
+- set **Server Interface address** to `10.10.1.1/24`
+
+PostUp and PostDown defines steps to be run after the interface is turned on or off, respectively.
+
+In this case, iptables is used to set Linux IP masquerade rules to allow all the clients to share the server’s IPv4 and IPv6 address. The rules will then be cleared once the tunnel
+is down.
+
+Post Up Script
+
+```
+iptables -A FORWARD -i %1 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE
+```
+
+-j ACCEPT specifies the target of the rule, what to do if the packet matches it
+-j MASQUERADE use the masquerade algorithm to allow to route traffic without disrupting the original traffic
+
+Post Down Script
+
+```
+iptables -D FORWARD -i %1 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE
+```
+
+The first 2 rules allow packets to be forwarded between interfaces: for traffic originating from wg0 (rule 1); and heading out of wg0 (rule 2).
+The first two allows forwarding so every traffic going in or out of the wireguard interface can be forwarded(routed).
+The last part translates incoming ips to the ip on the interface eth0 so basically NAT.
+
+%i is expanded to the interface name of the wireguard interface.
+
+In Wireguard clients settings, create a new client :
+name :  Yann-desktop-home
+e-mail
+should propose IP allocation of `10.10.1.2/32` for first client, then `10.10.1.3/32`, etc.
+Allowed IPs : set it to `0.0.0.0/1, 128.0.0.0/1` to reroute all traffic to the Wireguard tunnel,
+by default `0.0.0.0/0` will block untunneled traffic (block all traffic from taking a route that isn't the tunnel)
+Using /1 instead of /0 ensure that it takes precedence over the default /0 route.
+
+<img src="images/screen-wireguard-ui.png" alt="Wireguard-UI screenshot"/>
+
+### Pi-hole
+
+<img src="images/logo-pihole.svg" alt="Pi-Hole logo" height="128"/>
+
+**Pi-hole** is a network-level ad blocking and internet tracker blocking application.
+It has the ability to block traditional website advertisements as well as advertisements in unconventional places such as mobile apps ads.
+It can also be used as a DNS server and has a built-in DHCP server.
+
+In Pi-Hole go to Settings -> Interface settings and choose "Permit all origins" so that traffic from wireguard can be seen.
+Go to local DNS -> DNS records and add DNS record for every subdomain :
+
+```
+ackee.example.com 192.168.0.17
+chachatte.example.com 192.168.0.17
+```
+
+<img src="images/screen-pihole.png" alt="Pi-hole screenshot"/>
+
+### Unbound
+
+<img src="images/logo-unbound.svg" alt="Unbound logo" height="128"/>
+
+You may have to manually create the files :
+
+a-records.conf
+forward-records.conf
+srv-records.conf
+
+You can find the files from the unbound GitHub repository.
+
+To activate logging, edit the _/etc/unbound/unbound.conf_ configuration file :
+
+```
+verbosity: 1
+log-queries: yes
+```
+
+
+Here is the wirehole generated configuration in my case :
+
+- subnet : `10.2.0.0/24`
+    - PiHole : `10.2.0.100`
+    - Unbound : `10.2.0.200`
+    - Wireguard : `10.2.0.3`
+        - Internal subnet : `10.6.0.0`
+            - wg0 :
+                - interface : `10.6.0.1`
+                - peer allowed IPs : `10.6.0.2/32`
+            - peer1 :
+                - interface : `10.6.0.2` (DNS : `10.2.0.100`)
+                - peer allowed IPs : `0.0.0.0/0` (endpoint : `144.2.94.78:51820`)
+
+Configure your devices to use PiHole, This can be done in one of 3 ways:
+
+- Network-wide at the router level
+- Network-wide with the PiHole as DHCP
+- Specific devices only
+
+## Reverse proxy
 
 <img src="images/logo-traefik.svg" alt="Docker logo" height="148"/>
 
-**Traefik** is an open source **HTTP reverse proxy** and **load balancer** that can integrate easily with our Docker infrastructure, to intercept and route every incoming
+We will use **Traefik** as reverse proxy, Traefik is an open source **HTTP reverse proxy** and **load balancer** that can integrate easily with our Docker infrastructure, to intercept and route every incoming
 request to the corresponding backend services.
 
-We will use it listens to our services and instantly generates the routes, so they are connected to the outside world.
+We will use it listens to our services and instantly generates the **routes**, so they are connected to the outside world.
 We will also use it to automatically generate and renew **SSL/TLS certificates**.
 
 Here is an overview of the network flow :
@@ -716,7 +949,7 @@ flowchart LR
     style TRAEFIK_ROUTER fill: #806030
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_MYAPP_PORT5000{{app port}}
+    DOCKER_MYAPP_PORT5000{{exposed port}}
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
     TRAEFIK_ROUTER_MYAPP(myapp.example.com)
     TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
@@ -810,6 +1043,34 @@ dnsChallenge:
   provider: <your_provider_here>
 ```
 
+### IP whitelisting
+
+We will set up **IP whitelisting** so that we can allow only traffic from the local network or from the VPN for some of our services.
+Basically it involves defining a Traefik middleware for defining the IP whitelist and apply it to the needed services.
+
+So we need to allow 2 **IP ranges** :
+
+- The **local IP range** : IPs assigned to the devices on your local network (computers, mobile devices, ...)
+- The **Traefik Docker bridge network IP range** : IPs assigned by Docker to any container in the Traefik network
+
+For the Traefik Docker network IP range, you can either take the default assigned one, or assign a static subnet when creating the Traefik network, i.e. :
+
+```yaml
+networks:
+  traefik-net:
+    name: traefik-net
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+```
+
+That way :
+
+- Requests coming from the local network will come with a local address assigned by the router DHCP, and will be **accepted**.
+- Requests coming from the internet through VPN will go through PiHole and will be redirected to Traefik (Pi-hole's local DNS records)
+  and thus come with a Traefik Docker network assigned IP address, and will be **accepted**.
+- Requests coming from the internet without VPN will come with a public IP address and will be **rejected** as it will not match any whitelisted address.
+
 ### Details
 
 #### Static configuration file :
@@ -847,12 +1108,12 @@ log:
 
 Basically it :
 
-- enables the Traefik **dashboard**
-- defines 2 **entrypoints**, named `web` (for port `80`) and `websecure` (for port `443`)
-- defines a `docker` provider so that we can use **container labels** to retrieve routing configuration. We have configured it to **not** expose containers by default, so
+- enables the Traefik **dashboard** (UI that provides a detailed overview of the current configuration)
+- defines 2 **entrypoints**, named `web` (for port `80`) and `websecure` (for port `443`) so that we can receive requests on these ports
+- defines a `docker` provider so that we can use **container labels** for retrieving routing configuration. We have configured it to **not** expose containers by default, so
   that containers that do not have a `traefik.enable=true` label are ignored from the resulting routing configuration
-- defines a `default` **certificate resolver** for Let's Encrypt to automatically generate certificates (requested through **HTTP Challenge**)
-- set log level to `info` (you can set it to `debug` when checking your installation)
+- defines a `default` **certificate resolver** for Let's Encrypt to automatically generate certificates
+- set log level to `info` (you can set it to `debug` when you need more information on what's going on)
 
 #### Service definition :
 
@@ -919,7 +1180,7 @@ Basically it :
 
 - exposes ports `80` and `443` to receive incoming HTTP/HTTPS requests
 - defines a `traefik-net` **network** (which will have to be shared with the services that will use Traefik)
-- defines an environment variable to hold the DNS provider access token to be able to issue Let's Encrypt certificates through DNS challenge
+- defines an environment variable to hold the DNS provider access token to be able to issue Let's Encrypt certificates through **DNS challenge**
 - defines an HTTP **router** that will match `traefik.example.com` URL on our `websecure` **entrypoint** to point to our service
 - defines `httpsonly` **router** and **middleware** responsible for automatically redirecting HTTP requests to HTTPS
 - configures `dashboard` and `api` routers to use secure HTTPS endpoint with our certificate resolver to generate related Let's Encrypt certificates
@@ -927,18 +1188,9 @@ Basically it :
 - defines a `vpn-whitelist` **middleware** responsible for whitelisting IPs, so that it can be used by services that will be exposed to the internet to allow only local traffic and
   VPN traffic
 
-> [!NOTE]
-> For IP whitelist, we allow 2 IP ranges :
-> - The local IP range : IPs assigned to the devices on your local network (computer, mobile devices, ...)
-> - The Traefik Docker bridge network IP range : IPs assigned by Docker to any container in the Traefik network
-> 
-> Requests from the local network will come with a local address assigned by the router DHCP, and will be accepted.
-> Requests from the internet through VPN will go through PiHole and be redirected to Traefik and thus come with a Traefik Docker network assigned IP address, and will be accepted.
-> Requests from the internet without VPN will come with the public IP address and will be rejected as it will not match any whitelisted address.
-
 ### Generate basic authentication credentials
 
-As we configured the Traefik dashboard to be protected with basic authentication, allowed users have to be added to the _credentials.txt_ file.
+As we configured the Traefik dashboard to be protected with **basic authentication**, allowed users have to be added to the _credentials.txt_ file.
 
 You can generate a user/password using **htpasswd** :
 
@@ -1055,6 +1307,7 @@ services:
       - "traefik.http.routers.portainer.rule=Host(`portainer.example.com`)"
       - "traefik.http.routers.portainer.entrypoints=websecure"
       - "traefik.http.routers.portainer.tls.certresolver=default"
+      - "traefik.http.routers.portainer.middlewares=vpn-whitelist"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
       - "traefik.docker.network=traefik-net"
 
@@ -1075,10 +1328,11 @@ networks:
 Things to notice :
 
 - Portainer's data is bound to a **Docker volume** named `portainer-vol`
-- It uses Traefik **labels** to create :
-    - a **service** which will point to our container application running on port `9000`
-    - an HTTP **router** that will match `portainer.example.com` URL on our `websecure` **entrypoint** to point to our service
-    - a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+- It uses Traefik **labels** to :
+    - create a **service** which will point to our container application running on port `9000`
+    - create an HTTP **router** that will match `portainer.example.com` URL on our `websecure` **entrypoint** to point to our service
+    - assign the `vpn-whitelist` **middleware** so that the traffic will be restricted to allowed IPs only (application reachable only from local network or through VPN)
+    - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
 - It runs in its own **network** (`portainer-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
 
 ### Run
@@ -1181,6 +1435,7 @@ services:
       - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.example.com`)"
       - "traefik.http.routers.phpmyadmin.entrypoints=websecure"
       - "traefik.http.routers.phpmyadmin.tls.certresolver=default"
+      - "traefik.http.routers.phpmyadmin.middlewares=vpn-whitelist"
       - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik-net"
 
@@ -1197,10 +1452,11 @@ networks:
 Things to notice :
 
 - We mount a _theme_ directory to use a custom theme (dark theme named `darkwolf`), so just copy the theme data from official repository https://www.phpmyadmin.net/themes/
-- It uses Traefik **labels** to create :
-    - a **service** which will point to our container application running on port `80`
-    - an HTTP **router** that will match `phpmyadmin.example.com` URL on our `websecure` **entrypoint** to point to our service
-    - a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+- It uses Traefik **labels** to :
+    - create a **service** which will point to our container application running on port `80`
+    - create an HTTP **router** that will match `phpmyadmin.example.com` URL on our `websecure` **entrypoint** to point to our service
+    - assign the `vpn-whitelist` **middleware** so that the traffic will be restricted to allowed IPs only (application reachable only from local network or through VPN)
+    - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
 - It runs in its own **network** (`phpmyadmin-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
 - The `phpmyadmin` network will have to be added to any MySQL/MariaDB database container that we want to make reachable from PhpMyAdmin
 - We set the environment variable `PMA_ARBITRARY` to `1` to tell PhpMyAdmin to allow connection to any arbitrary database server (we will be able to specify the server on login
@@ -1220,7 +1476,7 @@ It should also have generated the needed Let's Encrypt certificates in the _acme
 
 The application is available at https://phpmyadmin.example.com.
 
-> **Note**
+> [!IMPORTANT]
 > You will have to use the database **service name** as host to connect to a database
 
 <img src="images/screen-phpmyadmin.png" alt="PhpMyAdmin screenshot"/>
@@ -1489,142 +1745,6 @@ This will create 2 containers :
 
 - A container holding the **MariaDB** database, exposed on port **3306**
 - A container holding the **Java** application (based on the provided _Dockerfile_), exposed on port **5001**
-
-# Add VPN with ad blocking and DNS caching
-
-We will install Wireguard, Unbound, Pi-hole.
-
-## Wireguard
-
-**WireGuard** is a free and open-source modern VPN that utilizes state-of-the-art cryptography to securely encapsulates IP packets over UDP, in order to lower the environment
-attack surface.
-
-chmod 600 /etc/wireguard/wg0.conf
-
-Else in the logs you will se a log :
-Warning: `/config/wg_confs/wg0.conf' is world accessible
-
-This means that the configuration file permissions are too broad as there’s a private key in there, it is better to restrict it.
-
-## Pi-hole
-
-**Pi-hole** is a network-level ad blocking and internet tracker blocking application.
-It has the ability to block traditional website advertisements as well as advertisements in unconventional places such as mobile apps ads.
-It can also be used as a DNS server and has a built-in DHCP server.
-
-In Pi-Hole go to Settings -> Interface settings and choose "Permit all origins" so that traffic from wireguard can be seen.
-Go to local DNS -> DNS records and add DNS record for every subdomain :
-
-```
-ackee.example.com 192.168.0.17
-chachatte.example.com 192.168.0.17
-```
-
-<img src="images/screen-pihole.png" alt="Pi-hole screenshot"/>
-
-## Unbound
-
-You may have to manually create the files :
-
-a-records.conf
-forward-records.conf
-srv-records.conf
-
-You can find the files from the unbound GitHub repository.
-
-To activate logging, edit the _/etc/unbound/unbound.conf_ configuration file :
-
-```
-verbosity: 1
-log-queries: yes
-```
-
-## Wireguard
-
-Create a new client from Wireguard UI :
-`Yann-home-desktop`
-export file
-install Wireguard client on client machine
-load file from client
-
-Install **Wirehole** :
-
-```bash
-sudo mkdir /opt/apps
-cd /opt/apps/
-sudo git clone https://github.com/IAmStoxe/wirehole.git
-cd wirehole
-```
-
-Edit _docker-compose.yml_ file :
-
-```bash
-> sudo vi docker-compose.yml
-```
-
-And :
-
-- set timezone to `Europe/Zurich`
-- change **PiHole** password
-
-Start :
-
-```bash
-> sudo docker-compose up
-```
-
-Reach http://10.2.0.100/admin
-
-Here is the wirehole generated configuration in my case :
-
-- subnet : `10.2.0.0/24`
-    - PiHole : `10.2.0.100`
-    - Unbound : `10.2.0.200`
-    - Wireguard : `10.2.0.3`
-        - Internal subnet : `10.6.0.0`
-            - wg0 :
-                - interface : `10.6.0.1`
-                - peer allowed IPs : `10.6.0.2/32`
-            - peer1 :
-                - interface : `10.6.0.2` (DNS : `10.2.0.100`)
-                - peer allowed IPs : `0.0.0.0/0` (endpoint : `144.2.94.78:51820`)
-
-Configure your devices to use PiHole, This can be done in one of 3 ways:
-
-- Network-wide at the router level
-- Network-wide with the PiHole as DHCP
-- Specific devices only
-
-Wireguard UI
-
-In Global settings, set endpoint address to wireguard.example.com
-Set DNS server as `10.2.0.100` (Pi hole) instead of `1.1.1.1` (Cloudflare)
-In Wireguard Server settings, set Server Interface address as `10.10.1.1/24`
-Post Up Script
-
-```
-iptables -A FORWARD -i %1 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE
-```
-
-Post Down Script
-
-```
-iptables -D FORWARD -i %1 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE
-```
-
-The first 2 rules allow packets to be forwarded between interfaces: for traffic originating from wg0 (rule 1); and heading out of wg0 (rule 2).
-The first two allows forwarding so every traffic going in or out of the wireguard interface can be forwarded(routed).
-The last part translates incoming ips to the ip on the interface eth0 so basically NAT.
-
-%i is expanded to the interface name of the wireguard interface.
-
-In Wireguard clients settings, create a new client :
-name :  Yann-desktop-home
-e-mail
-should propose IP allocation of `10.10.1.2/32` for first client, then `10.10.1.3/32`, etc.
-Allowed IPs : set it to `0.0.0.0/1, 128.0.0.0/1` to reroute all traffic to DNS,
-by default `0.0.0.0/0` will block untunneled traffic (block all traffic from taking a route that isn't the tunnel)
-Using /1 instead of /0 ensure that it takes precedence over the default /0 route.
 
 # Network architecture
 

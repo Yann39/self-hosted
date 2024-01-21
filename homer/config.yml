@@ -90,7 +90,7 @@ services:
         logo: "https://uptime.kuma.pet/img/icon.svg"
         subtitle: "Application monitoring tool"
         tag: "monitoring"
-        url: "https://uptime-kuma.example.com/status/dashboard"
+        url: "https://kuma.example.com/status/dashboard"
       - name: "Wireguard UI"
         logo: "https://seeklogo.com/images/W/wireguard-logo-259B3D155A-seeklogo.com.png"
         subtitle: "Simple yet fast and modern VPN"
