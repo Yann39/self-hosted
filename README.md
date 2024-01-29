@@ -1,6 +1,6 @@
 <img src="images/header-text-only.svg" alt="Header image"/>
 
-# Personal self-hosting guide
+# Personal self-hosting notes
 
 ![Static Badge](https://img.shields.io/badge/Version-1.0.0-2AAB92)
 ![Static Badge](https://img.shields.io/badge/Last%20update-19%20Oct%202023-blue)
@@ -49,8 +49,8 @@ It uses only **free** and **open source** software and hardware.
     2. [Dynamic DNS](#dynamic-dns)
     3. [Domain and subdomains](#domain-and-subdomains)
     4. [Port forwarding](#port-forwarding)
-    5. [VPN and ad-blocking](#vpn-and-ad-blocking)
-    6. [Reverse proxy](#reverse-proxy)
+    5. [Reverse proxy](#reverse-proxy)
+    6. [VPN and ad-blocking](#vpn-and-ad-blocking)
 5. [Install services](#install-services)
     1. [Portainer](#portainer)
     2. [PhpMyAdmin](#phpmyadmin)
@@ -71,7 +71,7 @@ I started this project in late 2023 as a **home lab**, for learning, the goal wa
 - **Secure** (authentication, SSL/TLS, reverse proxy, firewall, ad blocking, DDOS protection, rate limiting, custom DNS resolver, ...)
 - **Lightweight** (runs smoothly with minimal hardware and software requirements)
 - **Container-ready** (isolated, portable, scalable applications)
-- **Accessible** (some services only locally, some only through VPN, some publicly)
+- **Accessible** (some services accessible only locally, some only through VPN, some publicly)
 - **Supervised** (monitoring, alerting, tracking, backup tools)
 
 These are the tools we are going to run :
@@ -98,9 +98,9 @@ These are the tools we are going to run :
 And also some personal applications :
 
 - My first **PHP** / **MySQL** website from the early 2000's ! : https://github.com/Yann39/defrag-life
-- A **GraphQL API**  (**Java** / **Spring Boot**) for my **Flutter** mobile application : https://github.com/Yann39/chachatte-team
+- A **GraphQL API**  (**Java** / **Spring Boot**) for one of my **Flutter** mobile applications : https://github.com/Yann39/chachatte-team
 
-Yes, all of this runs on a single **Banana Pi M5 board** ! With the following specifications :
+All of this runs on a single **Banana Pi M5 board** ! With the following specifications :
 
 <table>
   <tr>
@@ -127,10 +127,11 @@ Yes, all of this runs on a single **Banana Pi M5 board** ! With the following sp
 
 ## Architecture
 
-Here is a chart representing the global "architecture" we are going to set up.
+Here is a chart representing the global network "architecture" we are going to set up.
 
 This architecture allows exposing applications to the internet while restricting access to some only through a **VPN** or from the local network.
-It's up to you to choose the architecture you need for each service, you may want some to be accessible only from your local network, some only via VPN, and others to anyone.
+It's up to you to choose the architecture you need for each service, you may want some to be accessible only from your local network,
+some only via VPN, and others to anyone from the internet.
 
 ```mermaid
 flowchart TB
@@ -166,15 +167,15 @@ flowchart TB
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
     DOCKER_UNBOUND_PORT53{{53/udp}}
-    TRAEFIK_ROUTER_MYAPP(myapp.example.com)
-    TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
-    TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
+    TRAEFIK_ROUTER_MYAPP(myapp\n.example.com)
+    TRAEFIK_ROUTER_PIHOLE(pihole\n.example.com)
+    TRAEFIK_ROUTER_TRAEFIK(traefik\n.example.com)
     TRAEFIK_ROUTER_3DOTS(...)
     ROOT_DNS_SERVERS[Root DNS servers]
     DNS_ISP[DNS 1 & 2]
     DOCKER_PIHOLE_DNS[DNS 1 & 2]
-    PIHOLE_DNS_PIHOLE[pihole.example.com]
-    PIHOLE_DNS_TRAEFIK[traefik.example.com]
+    PIHOLE_DNS_PIHOLE[pihole\n.example.com]
+    PIHOLE_DNS_TRAEFIK[traefik\n.example.com]
     PIHOLE_DNS_3DOTS[...]
 
     subgraph VPN_CLIENT[VPN CLIENT]
@@ -199,8 +200,8 @@ flowchart TB
 
     subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
         DDNS <--->|DynDNS| ROUTER
-        ROUTER --> ROUTER_PORT80
         ROUTER --> ROUTER_PORT443
+        ROUTER --> ROUTER_PORT80
         ROUTER --> ROUTER_PORT51820
         DNS_ISP
     end
@@ -248,7 +249,7 @@ flowchart TB
 
     WIREGUARD_CLIENT_ENDPOINT ---> SUBDOMAIN_WIREGUARD
     WIREGUARD_CLIENT_DNS -->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
-    DNS_ISP -->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
+    DNS_ISP ---->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
     ROUTER_PORT51820 -->|port forward| DOCKER_WIREGUARD_PORT51820
     ROUTER_PORT443 ---->|port forward| DOCKER_TRAEFIK_PORT443
     ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
@@ -259,7 +260,7 @@ flowchart TB
     TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
     DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
     DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
-    DOCKER_PIHOLE_DNS --> DOCKER_UNBOUND_PORT53
+    DOCKER_PIHOLE_DNS ---> DOCKER_UNBOUND_PORT53
     UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
 ```
 
@@ -298,10 +299,10 @@ I will describe below the procedures to install a system on the MicroSD card and
 </table>
 
 > [!NOTE]
-> I tried this first, but installing **Android** is optional, you can directly [format the eMMC storage](#format-the-emmc-storage)
+> This is the first thing I did to test it out, but actually installing **Android** is optional, you can directly [format the eMMC storage](#format-the-emmc-storage)
 > then [install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage), you will still need to execute some of the steps described below though.
 
-From your machine (Windows in my case) :
+From your machine (**Windows 11** in my case) :
 
 - Download **Amlogic USB Burning Tool** v3.1.0 (v3.2.0 seem not to work, error is raised while loading the image)
 - Download latest **Android** image for Banana Pi M5 : _2023-03-01-bpi-m5-m2pro-tablet-android9.img.zip_
@@ -348,7 +349,7 @@ Unlike Raspbian, Armbian focuses on unifying the experience across many ARM sing
 I first installed it on the **MicroSD** card, then used it to burn the Armbian image into the eMMC storage later
 (see [install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage)).
 
-From your machine (Windows in my case) :
+From your machine (**Windows 11** in my case) :
 
 - Download latest **Armbian** image for Banana Pi M5, choose the CLI or the GUI image depending on your preference :
     - With GUI : _Armbian_23.02.2_Bananapim5_bullseye_current_6.1.11_gnome_desktop.img.xz_
@@ -392,11 +393,12 @@ We will just use that user for the whole guide.
 
 For security reasons, do not use the `root` user directly.
 If you run a program as root and a security flaw is exploited, the attacker has access to the whole system without restriction.
+Using a regular user, even with sudo enabled, will require running `sudo` and will still prompt for the account password as an additional security step.
 It is also safer in case you unintentionally issue a command that could hurt the system (like deleting system files, etc.).
 
-Using a regular user, even with sudo enabled, will require running `sudo` and will still prompt for the account password as an additional security step.
-
-We may also create specific users inside Docker containers for some applications, specially when creating our own **Dockerfile**.
+> [!NOTE]
+> We may also create specific users inside **Docker containers** for some applications, specially when creating our own **Dockerfile**,
+> but we'll clarify then whether additional permissions need to be added in case they need access to the local filesystem through a **bind mount**.
 
 ## Cleaning
 
@@ -493,7 +495,8 @@ We will place every application configuration into the _/opt/apps_ directory, as
          |- ...
  ```
 
-But feel free to choose another location.
+Usually this directory (_/opt_) is reserved for any software and packages that are not part of the default installation,
+but feel free to choose another location.
 
 You can already create the directory :
 
@@ -574,7 +577,7 @@ Before installing our services, we need to configure the network, so we can reac
 The idea is to have :
 
 - A main **domain** name
-- A **subdomain** name for each application that must be reachable from the internet
+- A **subdomain** name for each application that must be reachable
 - A **dynamic DNS** name to avoid having to use a **static** public IP address
 - A **Traefik** reverse proxy to handle HTTP request that will be port forwarded to the applications
 
@@ -584,11 +587,13 @@ flowchart LR
     style DDNS_PROVIDER fill: #69587b
     style INTERNET_SERVICE_PROVIDER fill: #205566
     style TRAEFIK_CONTAINER fill: #663535
+    style APPLICATION fill: #663535
     SUBDOMAIN_MYAPP(myapp.example.com)
     DDNS(myddns.ddns.net)
     ROUTER[public IP]
     ROUTER_PORT{{port}}
     DOCKER_TRAEFIK_PORT{{port}}
+    APPLICATION_PORT{{port}}
 
     subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
         SUBDOMAIN_MYAPP
@@ -602,9 +607,15 @@ flowchart LR
         DDNS -->|DynDNS| ROUTER
         ROUTER --> ROUTER_PORT
     end
+        
+    subgraph BANANAPI[BANANA PI]
+        subgraph TRAEFIK_CONTAINER[TRAEFIK]
+            ROUTER_PORT -->|port forward| DOCKER_TRAEFIK_PORT
+        end
 
-    subgraph TRAEFIK_CONTAINER[TRAEFIK]
-        ROUTER_PORT -->|port forward| DOCKER_TRAEFIK_PORT
+        subgraph APPLICATION[APPLICATION]
+            DOCKER_TRAEFIK_PORT -->|HTTP router| APPLICATION_PORT
+        end
     end
 ```
 
@@ -641,7 +652,7 @@ Well, simply register a **dynamic DNS** hostname from a provider (there are free
 
 Then activate **DynDNS** on the router :
 
-- Service provider : `No-IP`
+- Service provider : `No-IP` (adapt to your provider)
 - Hostname : `myddns.ddns.net`
 - Username : _xxxxxxxx_
 - Password : _xxxxxxxx_
@@ -656,18 +667,18 @@ The IP will be updated automatically when a change will be detected.
 
 You will need to buy a **domain** from you preferred domain provider, for this guide I will use `example.com`.
 
-I advise you to also subscribe to a **domain privacy** option in order to hide you personal data. Domain Privacy protects the contact information of the owner of a domain name in
-the
-**WHOIS directory**. Normally, this public database is used to verify the availability of a domain name and who it belongs to, but marketing companies and scammers can also exploit
-it
-for other purposes, like sending spam or identity theft.
+> [!IMPORTANT]
+>I advise you to also subscribe to a **domain privacy** option in order to hide you personal data.
+> Domain Privacy protects the contact information of the owner of a domain name in the **WHOIS directory**.
+> Normally, this public database is used to verify the availability of a domain name and who it belongs to,
+> but marketing companies and scammers can also exploit it for other purposes, like sending spam or identity theft.
 
 Right, we will then use **subdomains** to locate each service as a separate website to avoid having to buy a new domain name for each.
 A subdomain is simply a prefix added to the original domain name, it functions as a separate website from its domain.
 
 So, let's create **subdomains** from the domain name registrar settings, for every service to be exposed on the internet, i.e. :
 
-- `traefik.example.com` : To access the [Traefik](#traefik) dashboard
+- `traefik.example.com` : To access the [Traefik](#reverse-proxy) dashboard
 - `portainer.example.com` : To access the [Portainer](#portainer) application
 - `phpmyadmin.example.com` : To access the [PhpMyAdmin](#phpmyadmin) application
 - `dashboard.example.com` : To access the [Homer](#homer) application
@@ -740,204 +751,15 @@ Of course if you want the applications to be available **only through VPN**, the
 > if your DNS provider support it.
 > See [HTTP challenge](#http-challenge) and [DNS challenge](#dns-challenge) below when configuring **Traefik**.
 
-## VPN and ad-blocking
-
-<table>
-  <tr>
-    <td>
-      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="128"/>
-    </td>
-    <td>
-      <img src="images/logo-pihole.svg" alt="Pi-Hole logo" height="128"/>
-    </td>
-    <td>
-      <img src="images/logo-unbound.svg" alt="Unbound logo" height="128"/>
-    </td>
-  </tr>
-</table>
-
-We will install **Wireguard**, **Pi-hole** and **Unbound** to create a virtual private network with ad-blocking and DNS privacy/caching capabilities.
-
-We will also install **Wireguard-UI** which provide a GUI for easier Wireguard configuration and monitoring.
-
-The point of self-hosting our own VPN server is to ensure a **private** and **secure** connection to our services from the internet.
-Also we don't have to trust third-party VPN providers, and have complete freedom and control over the browsing data.
-
-We will use a single **Compose** file to set up the 3 services as they are tightly linked.
-
-### Setup
-
-First, create a folder to hold data and configuration :
-
-```bash
-sudo mkdir /opt/apps/wireguard
-```
-
-Then from this project's _wireguard_ directory, copy into the _/opt/apps/wireguard_ directory :
-
-- the _.env_ file which holds some environment variables to be used in the Compose file
-- the _docker-compose.yml_ file which contains all the Docker services configuration
-
-### Run
-
-Simply run the Compose file :
-
-```bash
-sudo docker-compose -f /opt/apps/wireguard/docker_compose.yml up -d
-```
-
-You should end-up with **4** running containers :
-
-- wireguard
-- wireguard-ui
-- pihole
-- unbound
-
-It should also have generated the needed Let's Encrypt certificates in the _acme.json_ file.
-
-Unbound is not exposed but you can reach :
-
-- the VPN server at https://wireguard.example.com and its GUI at https://wireguard-ui.example.com
-- Pi-Hole at https://pihole.example.com
-
-More detail about each service below.
-
-### Wireguard
-
-<img src="images/logo-wireguard.svg" alt="Wireguard logo" height="128"/>
-
-**WireGuard** is a free and open-source modern VPN that utilizes state-of-the-art cryptography to securely encapsulates IP packets over UDP, in order to lower the environment
-attack surface.
-
-After installation, it is recommended to change the permissions of the _wg0.conf_ file :
-```shell
-chmod 600 /etc/wireguard/wg0.conf
-```
-
-else in the logs you will see a log :
-
-> Warning: `/config/wg_confs/wg0.conf' is world accessible
-
-which means that the configuration file permissions are too broad as there’s a private key in there, so it is better to restrict it.
-
-Create a new client from Wireguard UI :
-`Yann-home-desktop`
-export file
-install Wireguard client on client machine
-load file from client
-
-### Wireguard UI
-
-In Global settings :
-- set **endpoint** address to `wireguard.example.com`
-- set **DNS server** to `10.2.0.100` (Pi hole) instead of `1.1.1.1` (Cloudflare)
-
-In Wireguard Server settings :
-- set **Server Interface address** to `10.10.1.1/24`
-
-PostUp and PostDown defines steps to be run after the interface is turned on or off, respectively.
-
-In this case, iptables is used to set Linux IP masquerade rules to allow all the clients to share the server’s IPv4 and IPv6 address. The rules will then be cleared once the tunnel
-is down.
-
-Post Up Script
-
-```
-iptables -A FORWARD -i %1 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE
-```
-
--j ACCEPT specifies the target of the rule, what to do if the packet matches it
--j MASQUERADE use the masquerade algorithm to allow to route traffic without disrupting the original traffic
-
-Post Down Script
-
-```
-iptables -D FORWARD -i %1 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE
-```
-
-The first 2 rules allow packets to be forwarded between interfaces: for traffic originating from wg0 (rule 1); and heading out of wg0 (rule 2).
-The first two allows forwarding so every traffic going in or out of the wireguard interface can be forwarded(routed).
-The last part translates incoming ips to the ip on the interface eth0 so basically NAT.
-
-%i is expanded to the interface name of the wireguard interface.
-
-In Wireguard clients settings, create a new client :
-name :  Yann-desktop-home
-e-mail
-should propose IP allocation of `10.10.1.2/32` for first client, then `10.10.1.3/32`, etc.
-Allowed IPs : set it to `0.0.0.0/1, 128.0.0.0/1` to reroute all traffic to the Wireguard tunnel,
-by default `0.0.0.0/0` will block untunneled traffic (block all traffic from taking a route that isn't the tunnel)
-Using /1 instead of /0 ensure that it takes precedence over the default /0 route.
-
-<img src="images/screen-wireguard-ui.png" alt="Wireguard-UI screenshot"/>
-
-### Pi-hole
-
-<img src="images/logo-pihole.svg" alt="Pi-Hole logo" height="128"/>
-
-**Pi-hole** is a network-level ad blocking and internet tracker blocking application.
-It has the ability to block traditional website advertisements as well as advertisements in unconventional places such as mobile apps ads.
-It can also be used as a DNS server and has a built-in DHCP server.
-
-In Pi-Hole go to Settings -> Interface settings and choose "Permit all origins" so that traffic from wireguard can be seen.
-Go to local DNS -> DNS records and add DNS record for every subdomain :
-
-```
-ackee.example.com 192.168.0.17
-chachatte.example.com 192.168.0.17
-```
-
-<img src="images/screen-pihole.png" alt="Pi-hole screenshot"/>
-
-### Unbound
-
-<img src="images/logo-unbound.svg" alt="Unbound logo" height="128"/>
-
-You may have to manually create the files :
-
-a-records.conf
-forward-records.conf
-srv-records.conf
-
-You can find the files from the unbound GitHub repository.
-
-To activate logging, edit the _/etc/unbound/unbound.conf_ configuration file :
-
-```
-verbosity: 1
-log-queries: yes
-```
-
-
-Here is the wirehole generated configuration in my case :
-
-- subnet : `10.2.0.0/24`
-    - PiHole : `10.2.0.100`
-    - Unbound : `10.2.0.200`
-    - Wireguard : `10.2.0.3`
-        - Internal subnet : `10.6.0.0`
-            - wg0 :
-                - interface : `10.6.0.1`
-                - peer allowed IPs : `10.6.0.2/32`
-            - peer1 :
-                - interface : `10.6.0.2` (DNS : `10.2.0.100`)
-                - peer allowed IPs : `0.0.0.0/0` (endpoint : `144.2.94.78:51820`)
-
-Configure your devices to use PiHole, This can be done in one of 3 ways:
-
-- Network-wide at the router level
-- Network-wide with the PiHole as DHCP
-- Specific devices only
-
 ## Reverse proxy
 
 <img src="images/logo-traefik.svg" alt="Docker logo" height="148"/>
 
-We will use **Traefik** as reverse proxy, Traefik is an open source **HTTP reverse proxy** and **load balancer** that can integrate easily with our Docker infrastructure, to intercept and route every incoming
-request to the corresponding backend services.
+**Traefik** is an open source **HTTP reverse proxy** and **load balancer** that can integrate easily with our Docker infrastructure.
+We will use it to intercept and route every incoming request to the corresponding backend services.
 
-We will use it listens to our services and instantly generates the **routes**, so they are connected to the outside world.
-We will also use it to automatically generate and renew **SSL/TLS certificates**.
+It will listen to our services and instantly generates the **routes**, so that they are connected to the outside world.
+We will also use it to automatically generate and renew **SSL/TLS certificates** through **Let's Encrypt**.
 
 Here is an overview of the network flow :
 
@@ -945,7 +767,7 @@ Here is an overview of the network flow :
 flowchart LR
     style INCOMING_REQUEST fill: #205566
     style TRAEFIK_CONTAINER fill: #663535
-    style MYAPP_CONTAINER fill: #663535
+    style MYAPP_CONTAINER fill: #69587b
     style TRAEFIK_ROUTER fill: #806030
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
@@ -953,7 +775,7 @@ flowchart LR
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
     TRAEFIK_ROUTER_MYAPP(myapp.example.com)
     TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
-    INCOMING_REQUEST[/INCOMING REQUEST/]
+    INCOMING_REQUEST[/INCOMING\nREQUEST/]
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -980,15 +802,57 @@ flowchart LR
     end
 ```
 
-### Setting up
+### Installation
 
-Create a folder to hold data and configuration :
+First, create a folder to hold data and configuration :
 
 ```bash
 sudo mkdir /opt/apps/traefik
 ```
+Then copy the files from this project's _traefik_ directory into the _/opt/apps/traefik_ directory :
 
-As we use automatic **Let's Encrypt** certificates generation, we need to create a `acme.json` file that will hold the generated certificates (file is mapped to a volume in the
+- _docker_compose.yml_ : The Traefik service definition
+- _traefik.yml_ : The Traefik static configuration
+- _credentials.txt_ : A file that will hold users credentials to access the Traefik dashboard (restricted with **basic authentication**),
+  see [Generate basic authentication credentials](#generate-basic-authentication-credentials)
+
+Files should be ready to use, simply replace the e-mail address (`admin@example.com`) in the _traefik.yaml_ file with your e-mail address.
+
+You will also need to create the **JSON** file to hold the certificates, see [TLS certificates](#tls-certificates).
+
+Anyway you will find below more details about each file (see [Details](#details)) and some further configuration.
+
+### Generate basic authentication credentials
+
+As we configured the Traefik dashboard to be protected with **basic authentication**, allowed users have to be added to the _credentials.txt_ file.
+
+You can generate a user/password using **htpasswd** :
+
+1. Install the needed package if not present :
+
+    ```bash
+    sudo apt-get install apache2-util
+    ```
+
+2. Generate the credentials (we use **bcrypt** with a computing time of 10) :
+
+    ```bash
+    htpasswd -nbBC 10 admin xxxxxxxx
+    ```
+
+Then copy the output to the _credentials.txt_ file.
+
+### TLS certificates
+
+<img src="images/logo-letsencrypt.svg" alt="Let's Encrypt logo" height="64"/>
+
+To enable **HTTPS** on our websites, we need to get **TLS certificates** from a **certificate authority**.
+A TLS certificate certifies, in a way, the authenticity of a website (actually it proves that we have the ownership of the public key used for TLS encryption),
+preventing hackers from intercepting any data transmitted between a device and the site.
+
+We will use **Let's Encrypt**, a nonprofit certificate authority which provide free TLS certificates.
+
+**Let's Encrypt** can automatically generate certificates via Traefik, for that we need to create a `acme.json` file that will hold the generated certificates (file is mapped to a volume in the
 **Compose** file), so that the certificates are persisted between container restarts (not generated each time which could raise Let's Encrypt rate limits), we also need to change
 the permissions so that Traefik can access and edit this file :
 
@@ -997,14 +861,6 @@ cd /opt/apps/traefik
 touch /opt/apps/traefik/acme.json
 chmod 600 /opt/apps/traefik/acme.json
 ```
-
-Then copy the files from this project's _traefik_ directory into the _/opt/apps/traefik_ directory :
-
-- _docker_compose.yml_ : The Traefik service definition
-- _traefik.yml_ : The Traefik static configuration
-- _credentials.txt_ : A file that will hold users credentials to access the Traefik dashboard (restricted with **basic authentication**)
-
-Simply replace the e-mail address (`admin@example.com`) in the _traefik.yaml_ file.
 
 #### HTTP challenge
 
@@ -1075,7 +931,7 @@ That way :
 
 #### Static configuration file :
 
-_traefik.yaml_ :
+:page_facing_up: _traefik.yaml_ :
 
 ```yaml
 api:
@@ -1117,7 +973,7 @@ Basically it :
 
 #### Service definition :
 
-_docker-compose.yml_ :
+:page_facing_up: _docker-compose.yml_ :
 
 ```yaml
 version: "3.8"
@@ -1188,26 +1044,6 @@ Basically it :
 - defines a `vpn-whitelist` **middleware** responsible for whitelisting IPs, so that it can be used by services that will be exposed to the internet to allow only local traffic and
   VPN traffic
 
-### Generate basic authentication credentials
-
-As we configured the Traefik dashboard to be protected with **basic authentication**, allowed users have to be added to the _credentials.txt_ file.
-
-You can generate a user/password using **htpasswd** :
-
-1. Install the needed package if not present :
-
-    ```bash
-    sudo apt-get install apache2-util
-    ```
-
-2. Generate the credentials (we use **bcrypt** with a computing time of 10) :
-
-    ```bash
-    htpasswd -nbBC 10 admin xxxxxxxx
-    ```
-
-Then copy the output to the _credentials.txt_ file.
-
 ### Run
 
 Finally, run the Compose file :
@@ -1225,6 +1061,527 @@ It should also have generated the needed Let's Encrypt certificates in the _acme
 So you can reach the dashboard at https://traefik.example.com.
 
 <img src="images/screen-traefik.png" alt="Traefik dashboard screenshot"/>
+
+## VPN and ad-blocking
+
+<table>
+  <tr>
+    <td>
+      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="128"/>
+    </td>
+    <td>
+      <img src="images/logo-pihole.svg" alt="Pi-Hole logo" height="128"/>
+    </td>
+    <td>
+      <img src="images/logo-unbound.svg" alt="Unbound logo" height="128"/>
+    </td>
+  </tr>
+</table>
+
+We will install **WireGuard**, **Pi-hole** and **Unbound** to create a virtual private network (VPN) with ad-blocking and DNS privacy/caching capabilities.
+
+**WireGuard** is a free and open-source modern VPN that utilizes state-of-the-art cryptography to securely encapsulates **IP packets** over **UDP**,
+in order to lower the environment attack surface. As a VPN it establishes a secure connection between a computer and the internet
+by making all the traffic going through an encrypted **tunnel**. The point of self-hosting our own VPN server is to ensure
+a **private** and **secure** connection to our services from the internet, without having to trust third-party VPN providers,
+and to keep complete freedom and control over the browsing data.
+
+**Pi-hole** is a network-level ad blocking and internet tracker blocking application.
+It has the ability to block traditional website advertisements as well as advertisements in unconventional places such as mobile apps ads.
+It can also be used as a **DNS** server and has a built-in **DHCP** server.
+
+**Unbound** is a validating, recursive, caching **DNS resolver**, that has the ability to contact **DNS authority** servers directly
+in order to validate and cache the queries on your network and serve them to you directly, so you don’t have to rely on your ISP or third-party DNS resolvers.
+
+We will also install **WireGuard-UI** which provide a GUI for easier WireGuard configuration and monitoring.
+
+So the idea is that every client in any network can use the VPN to reach our applications while taking advantage of Pi-Hole and Unbound :
+
+```mermaid
+flowchart TB
+    style WINDOWS11 fill: #205566
+    style LAPTOP fill: #205566
+    style MOBILE fill: #205566
+    style MACOS fill: #205566
+    style WIREGUARD_SERVER fill: #764545
+    style PIHOLE fill: #663535
+    style UNBOUND fill: #562525
+    style INTERNET fill: #4d683b
+
+    WINDOWS11(Peer 1 \n Home PC - Windows 11)
+    LAPTOP(Peer 2 \n Home laptop - Ubuntu 22)
+    MOBILE(Peer 3 \n Phone - Android 14)
+    MACOS(Peer 4 \n Work PC - MacOS 13)
+
+    WIREGUARD_SERVER(WireGuard server - Secure VPN)
+    PIHOLE(Pi-Hole - Firewall & ad-blocking)
+    UNBOUND(Unbound - Custom DNS resolver)
+
+    INTERNET((Internet))
+
+    subgraph HOME_NETWORK[Home network]
+        WINDOWS11
+        LAPTOP
+    end
+
+    subgraph 5G_NETWORK[Mobile network]
+        MOBILE
+    end
+
+    subgraph WORK_NETWORK[Work network]
+        MACOS
+    end
+
+    subgraph BANANA_PI[Banana Pi]
+        WIREGUARD_SERVER
+        PIHOLE
+        UNBOUND
+    end
+
+    WINDOWS11 -- WireGuard tunnel --> WIREGUARD_SERVER
+    LAPTOP -- WireGuard tunnel --> WIREGUARD_SERVER
+    MOBILE -- WireGuard tunnel --> WIREGUARD_SERVER
+    MACOS -- WireGuard tunnel --> WIREGUARD_SERVER
+
+    WIREGUARD_SERVER -- DNS queries --> PIHOLE
+
+    PIHOLE -- Filtered DNS queries --> UNBOUND
+
+    UNBOUND -- DNS resolution --> INTERNET
+```
+
+We will use a single **Compose** file to set up the 3 services as they are tightly linked.
+
+### Installation
+
+First, create a folder to hold data and configuration :
+
+```bash
+sudo mkdir /opt/apps/wireguard
+```
+
+Then from this project's _wireguard_ directory, copy into the _/opt/apps/wireguard_ directory :
+
+- the _.env_ file which holds some environment variables to be used in the Compose file
+- the _docker-compose.yml_ file which contains all the Docker services configuration
+
+For more details about each file, see [Details](#details-1).
+
+Now let's take a look at the configuration for each service.
+
+### Configuration
+
+#### Wireguard
+
+<img src="images/logo-wireguard.svg" alt="Wireguard logo" height="128"/>
+
+The Compose file will run a **Wireguard server**, which will need to be configured.
+
+First, after WireGuard installation, it is recommended to change the permissions of the _wg0.conf_ file (holding the server configuration) :
+
+```shell
+chmod 600 /etc/wireguard/wg0.conf
+```
+
+else in the logs you will see a log :
+
+> Warning: `/config/wg_confs/wg0.conf' is world accessible
+
+which means that the configuration file permissions are too broad as there’s a private key in there, so it is better to restrict it.
+
+##### Global settings
+
+Then you can do the configuration using WireGuard UI (accessible at https://wireguard-ui.example.com) :
+
+In **Global Settings** menu :
+
+- set **Endpoint Address** to `wireguard.example.com`, this is the public IP address of your WireGuard server that every client will connect to
+- set **DNS Servers** to `10.2.0.100` (Pi hole address defined in Docker Compose) instead of `1.1.1.1` (Cloudflare) so that all clients traffic goes through Pi-Hole (and then Unbound)
+
+In **WireGuard Server** menu :
+
+- set **Server Interface address** to `10.10.1.1/24` which is the IP range (CIDR) to be used by peers in the tunnel (every peer in the network will be able to get an IP
+  between `10.10.1.1` and `10.10.1.254`). You can use another address as you wish.
+
+##### Firewall rules
+
+We have to set some firewall rules as our WireGuard VPN is running in a Docker container, indeed we need to :
+- allow packets to be routed through the WireGuard server, by setting up `FORWARD` rules
+- allow WireGuard clients to access the Internet, by configuring **NAT** (Network Address Translation) rules
+
+So basically we need to deal with 3 interfaces of our container :
+- `eth0@ifxx` : virtual interface that route packets from/to the Traefik Docker bridge network, handling incoming traffic from all peers
+- `eth1@ifxx` : virtual interface that route packets from/to the Wireguard container, for communication within the WireGuard container
+- `wg0` : the WireGuard interface
+
+> [!Note]
+> WireGuard typically requires a network interface for each peer, but as all incoming traffic from the WireGuard peers
+> are arriving at the container using the Traefik bridge network assigned IP address, then only one interface is handling incoming traffic from all WireGuard peers
+
+You can run the following commands to list network interfaces from the container, which may differ depending on your configuration :
+
+First get into the container :
+```shell
+sudo docker exec -it wireguard bash
+```
+
+Then run :
+```shell
+ip link show
+```
+
+You should get something like :
+
+> ```
+> 1: lo: <LOOPBACK,UP,LOWER_UP> ...
+> 5: wg0: <POINTOPOINT,NOARP,UP,LOWER_UP> ...
+> 19848: eth1@if19849: <BROADCAST,MULTICAST,UP,LOWER_UP> ...
+> 19850: eth0@if19851: <BROADCAST,MULTICAST,UP,LOWER_UP> ...
+> ```
+
+`ip a` or `ifconfig` will give you the ip address it points to :
+
+> ```
+> eth0      Link encap:Ethernet  HWaddr 02:43:AC:2C:00:08
+> inet addr:172.28.0.7  Bcast:172.28.255.255  Mask:255.255.0.0
+> UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+> [...]
+> 
+> eth1      Link encap:Ethernet  HWaddr 02:43:0B:03:00:04
+> inet addr:10.2.0.3  Bcast:10.2.0.255  Mask:255.255.255.0
+> UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+> [...]
+> 
+> lo        Link encap:Local Loopback
+> inet addr:127.0.0.1  Mask:255.0.0.0
+> UP LOOPBACK RUNNING  MTU:65536  Metric:1
+> [...]
+> 
+> wg0       Link encap:UNSPEC  HWaddr 00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+> inet addr:10.10.1.1  P-t-P:10.10.1.1  Mask:255.255.255.0
+> UP POINTOPOINT RUNNING NOARP  MTU:1450  Metric:1
+> [...]
+> ```
+
+Well, in **WireGuard Server** menu :
+
+- set **Post Up Script**  to :
+  ```
+  iptables -A FORWARD -i %1 -j ACCEPT;
+  iptables -A FORWARD -o %1 -j ACCEPT;
+  iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE
+  ```
+- set **Post Down Script** to :
+  ```
+  iptables -D FORWARD -i %1 -j ACCEPT;
+  iptables -D FORWARD -o %1 -j ACCEPT;
+  iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE
+  ```
+
+**Post Up** and **Post Down** defines steps to be run after the interface is turned on or off, respectively.
+In this case, **iptables** is used to set IP rules.
+The rules will then be cleared once the tunnel is down.
+
+> [!Note]
+> I used the old deprecated **iptables** to set firewall rules, but you may better use **nftables** which is the successor to iptables
+
+The first 2 rules allow packets to be forwarded between interfaces, for traffic originating from the WireGuard interface `wg0` (rule 1), and heading out of `wg0` (rule 2).
+These two rules allow forwarding so every traffic going in or out of the WireGuard interface can be forwarded (routed).
+The last rule translates incoming IPs to the IP on every `eth` interface, so basically NAT.
+
+`%1` is a placeholder for the network interface connected to the WireGuard container, so here `wg0`.
+`eth+` is a pattern used in iptables to match network interfaces that start with the prefix `eth`, so it matches our 2 virtual interfaces.
+
+
+You can see that iptables are applied by running :
+
+```shell
+iptable -L
+```
+
+Result :
+> ```
+> Chain INPUT (policy ACCEPT)
+> target     prot opt source               destination
+> 
+> Chain FORWARD (policy ACCEPT)
+> target     prot opt source               destination
+> ACCEPT     all  --  anywhere             anywhere
+> ACCEPT     all  --  anywhere             anywhere
+> 
+> Chain OUTPUT (policy ACCEPT)
+> target     prot opt source               destination
+> ```
+
+Or for the NAT table :
+
+```shell
+iptable -t nat -L
+```
+
+Result :
+> ```
+> Chain PREROUTING (policy ACCEPT)
+> target     prot opt source               destination
+>
+> Chain INPUT (policy ACCEPT)
+> target     prot opt source               destination
+>
+> Chain OUTPUT (policy ACCEPT)
+> target     prot opt source               destination
+>
+> Chain POSTROUTING (policy ACCEPT)
+> target     prot opt source               destination
+> MASQUERADE  all  --  anywhere             anywhere
+> ```
+
+##### Clients
+
+In **WireGuard Clients** settings, create a new client :
+
+- name :  Desktop-home
+- e-mail : your.email@example.com
+
+It should propose IP allocation of `10.10.1.2/32` for first client, then `10.10.1.3/32`, and so on as we set server interface address to `10.10.1.1/24`.
+
+By default, allowed IPs is set to `0.0.0.0/0`, which will block untunneled traffic (block all traffic from taking a route that isn't the tunnel).
+Change it to `0.0.0.0/1, 128.0.0.0/1` to reroute all traffic to the WireGuard tunnel.
+Using `/1` instead of `/0` ensure that it takes precedence over the default `/0` route.
+
+Finally, to use a VPN client :
+
+- export config file for your client
+- install WireGuard client on your client machine
+- load config file from client
+
+Do this for each client on every device you need.
+
+<img src="images/screen-wireguard-ui.png" alt="Wireguard-UI screenshot"/>
+
+#### Pi-hole
+
+<img src="images/logo-pihole.svg" alt="Pi-Hole logo" height="128"/>
+
+**Pi-hole** is a network-level ad blocking and internet tracker blocking application.
+It has the ability to block traditional website advertisements as well as advertisements in unconventional places such as mobile apps ads.
+It can also be used as a DNS server and has a built-in DHCP server.
+
+In Pi-Hole go to Settings -> Interface settings and choose "Permit all origins" so that traffic from wireguard can be seen.
+Go to local DNS -> DNS records and add DNS record for every subdomain :
+
+```
+ackee.example.com 192.168.0.17
+chachatte.example.com 192.168.0.17
+```
+
+<img src="images/screen-pihole.png" alt="Pi-hole screenshot"/>
+
+#### Unbound
+
+<img src="images/logo-unbound.svg" alt="Unbound logo" height="128"/>
+
+You may have to manually create the files :
+
+a-records.conf
+forward-records.conf
+srv-records.conf
+
+You can find the files from the unbound GitHub repository.
+
+To activate logging, edit the _/etc/unbound/unbound.conf_ configuration file :
+
+```
+verbosity: 1
+log-queries: yes
+```
+
+Configure your devices to use PiHole, This can be done in one of 3 ways:
+
+- Network-wide at the router level
+- Network-wide with the PiHole as DHCP
+- Specific devices only
+
+Here is the wirehole generated configuration in my case :
+
+- network subnet : `10.2.0.0/24` (every IP in the network will be between `10.2.0.1` and `10.2.0.254`)
+    - PiHole IP : `10.2.0.100`
+    - Unbound IP : `10.2.0.200`
+    - WireGuard IP : `10.2.0.3`
+        - Internal subnet : `10.6.0.0`
+            - wg0 :
+                - interface : `10.6.0.1`
+                - peer allowed IPs : `10.6.0.2/32`
+            - peer1 :
+                - interface : `10.6.0.2` (DNS : `10.2.0.100`)
+                - peer allowed IPs : `0.0.0.0/0` (endpoint : `wireguard.example.com:51820`)
+
+### Details
+
+#### Environment variables
+
+:page_facing_up: _.env_ :
+
+```shell
+WIREGUARD_UI_USERNAME=<username>
+WIREGUARD_UI_PASSWORD=<password>
+PIHOLE_PASSWORD=<password>
+```
+
+#### Services definition
+
+:page_facing_up: _docker_compose.yaml_ :
+
+```yaml
+version: "3.8"
+
+networks:
+
+  wireguard_net:
+    name: wireguard_net
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.2.0.0/24
+
+  traefik-net:
+    name: traefik-net
+    external: true
+
+services:
+
+  unbound:
+    image: "mvance/unbound-rpi:latest"
+    container_name: unbound
+    restart: unless-stopped
+    hostname: "unbound"
+    volumes:
+      - "./unbound:/opt/unbound/etc/unbound/"
+      - "./unbound/srv-records.conf:/opt/unbound/etc/unbound/srv-records.conf"
+      - "./unbound/forward-records.conf:/opt/unbound/etc/unbound/forward-records.conf"
+      - "./unbound/a-records.conf:/opt/unbound/etc/unbound/a-records.conf"
+    networks:
+      wireguard_net:
+        ipv4_address: 10.2.0.200
+
+  wireguard:
+    depends_on: [unbound, pihole]
+    image: linuxserver/wireguard:latest
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./wireguard:/config
+    ports:
+      - "51820:51820/udp" # port of the wireguard server
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Zurich
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      wireguard_net:
+        ipv4_address: 10.2.0.3
+      traefik-net:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wireguard-ui.rule=Host(`wireguard-ui.example.com`)"
+      - "traefik.http.routers.wireguard-ui.entrypoints=websecure"
+      - "traefik.http.routers.wireguard-ui.tls.certresolver=default"
+      - "traefik.http.routers.wireguard-ui.middlewares=vpn-whitelist"
+      - "traefik.http.services.wireguard-ui.loadbalancer.server.port=5000"
+      - "traefik.docker.network=traefik-net"
+
+  wireguard-ui:
+    image: ngoduykhanh/wireguard-ui:latest
+    container_name: wireguard-ui
+    depends_on: [unbound, wireguard]
+    cap_add:
+      - NET_ADMIN
+    # use the network of the 'wireguard' service. this enables to show active clients in the status page
+    network_mode: service:wireguard
+    env_file: ./.env
+    environment:
+      - SENDGRID_API_KEY
+      - EMAIL_FROM_ADDRESS
+      - EMAIL_FROM_NAME
+      - SESSION_SECRET
+      - WGUI_USERNAME=$WIREGUARD_UI_USERNAME
+      - WGUI_PASSWORD=$WIREGUARD_UI_PASSWORD
+      - WG_CONF_TEMPLATE
+      - WGUI_MANAGE_START=true
+      - WGUI_MANAGE_RESTART=true
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+    volumes:
+      - ./wireguard-ui-db:/app/db
+      - ./wireguard:/etc/wireguard
+
+  pihole:
+    depends_on: [unbound]
+    container_name: pihole
+    image: pihole/pihole:latest
+    restart: unless-stopped
+    hostname: pihole
+    env_file: ./.env
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pihole.rule=Host(`pihole.example.com`)"
+      - "traefik.http.routers.pihole.entrypoints=websecure"
+      - "traefik.http.routers.pihole.tls.certresolver=default"
+      - "traefik.http.routers.pihole.middlewares=vpn-whitelist"
+      - "traefik.http.services.pihole.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+    dns:
+      - 127.0.0.1
+      - 10.2.0.200 # Points to unbound
+    environment:
+      TZ: "Europe/Zurich"
+      WEBPASSWORD: $PIHOLE_PASSWORD # Blank password - Can be whatever you want.
+      ServerIP: 10.2.0.100 # Internal IP of pihole
+      DNS1: 10.2.0.200 # Unbound IP
+      DNS2: 10.2.0.200 # If we don't specify two, it will auto pick google.
+    # Volumes store your data between container upgrades
+    volumes:
+      - "./etc-pihole/:/etc/pihole/"
+      - "./etc-dnsmasq.d/:/etc/dnsmasq.d/"
+    # Recommended but not required (DHCP needs NET_ADMIN)
+    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
+    cap_add:
+      - NET_ADMIN
+    networks:
+      wireguard_net:
+        ipv4_address: 10.2.0.100
+      traefik-net:
+```
+
+### Run
+
+Simply run the Compose file :
+
+```bash
+sudo docker-compose -f /opt/apps/wireguard/docker_compose.yml up -d
+```
+
+You should end-up with **4** running containers :
+
+- wireguard
+- wireguard-ui
+- pihole
+- unbound
+
+It should also have generated the needed Let's Encrypt certificates in the _acme.json_ file.
+
+Unbound is not exposed but you can reach :
+
+- the VPN server at https://wireguard.example.com and its GUI at https://wireguard-ui.example.com
+- Pi-Hole at https://pihole.example.com
 
 ## Portainer
 
