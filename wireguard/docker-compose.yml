@@ -38,7 +38,7 @@ services:
     volumes:
       - ./wireguard:/config
     ports:
-      - "51820:51820/udp" # port of the wireguard server
+      - "51820:51820/udp"
     restart: unless-stopped
     environment:
       - PUID=1000
@@ -65,7 +65,7 @@ services:
     depends_on: [unbound, wireguard]
     cap_add:
       - NET_ADMIN
-    # use the network of the 'wireguard' service. this enables to show active clients in the status page
+    # use the network of the 'wireguard' service, this enables to show active clients in the status page
     network_mode: service:wireguard
     env_file: ./.env
     environment:
@@ -106,19 +106,17 @@ services:
       - "traefik.docker.network=traefik-net"
     dns:
       - 127.0.0.1
-      - 10.2.0.200 # Points to unbound
+      - 10.2.0.200 # Unbound IP
     environment:
       TZ: "Europe/Zurich"
-      WEBPASSWORD: $PIHOLE_PASSWORD # Blank password - Can be whatever you want.
+      WEBPASSWORD: $PIHOLE_PASSWORD
       ServerIP: 10.2.0.100 # Internal IP of pihole
       DNS1: 10.2.0.200 # Unbound IP
       DNS2: 10.2.0.200 # If we don't specify two, it will auto pick google.
-    # Volumes store your data between container upgrades
     volumes:
       - "./etc-pihole/:/etc/pihole/"
       - "./etc-dnsmasq.d/:/etc/dnsmasq.d/"
     # Recommended but not required (DHCP needs NET_ADMIN)
-    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
     cap_add:
       - NET_ADMIN
     networks:

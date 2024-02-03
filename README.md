@@ -1,6 +1,6 @@
 <img src="images/header-text-only.svg" alt="Header image"/>
 
-# Personal self-hosting notes
+# Personal self-hosting guide
 
 ![Static Badge](https://img.shields.io/badge/Version-1.0.0-2AAB92)
 ![Static Badge](https://img.shields.io/badge/Last%20update-19%20Oct%202023-blue)
@@ -58,8 +58,8 @@ It uses only **free** and **open source** software and hardware.
     4. [Dashdot](#dashdot)
     5. [Uptime Kuma](#uptime-kuma)
     6. [Ackee](#ackee)
-    7. [Defrag-life](#defrag-life)
-    8. [Chachatte Team API](#chachatte-team-api)
+6. [Contributing](#contributing)
+7. [Acknowledgments](#acknowledgments)
 
 # Overview
 
@@ -130,7 +130,7 @@ All of this runs on a single **Banana Pi M5 board** ! With the following specifi
 Here is a chart representing the global network "architecture" we are going to set up.
 
 This architecture allows exposing applications to the internet while restricting access to some only through a **VPN** or from the local network.
-It's up to you to choose the architecture you need for each service, you may want some to be accessible only from your local network,
+It's up to you to choose the accessibility level you need for each service, you may want some to be accessible only from your local network,
 some only via VPN, and others to anyone from the internet.
 
 ```mermaid
@@ -146,13 +146,12 @@ flowchart TB
     style MYAPP_CONTAINER fill: #663535
     style WIREGUARD_CONTAINER fill: #663535
     style TRAEFIK_ROUTER fill: #806030
+    style TRAEFIK_MIDDLEWARE fill: #806030
     style VPN_CLIENT fill: #105040
     style PIHOLE_DNS_RECORDS fill: #806030
     DOMAIN(example.com)
     SUBDOMAIN_WIREGUARD(wireguard.example.com)
     SUBDOMAIN_MYAPP(myapp.example.com)
-    SUBDOMAIN_TRAEFIK(traefik.example.com)
-    SUBDOMAIN_PIHOLE(pihole.example.com)
     SUBDOMAIN_3DOTS(...)
     DDNS(myddns.ddns.net)
     ROUTER[public IP]
@@ -184,22 +183,18 @@ flowchart TB
     end
 
     subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
-        DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
-        DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
         DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
         DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
         SUBDOMAIN_3DOTS
     end
 
     subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
-        SUBDOMAIN_TRAEFIK --->|CNAME| DDNS
-        SUBDOMAIN_PIHOLE --->|CNAME| DDNS
         SUBDOMAIN_MYAPP --->|CNAME| DDNS
         SUBDOMAIN_WIREGUARD --->|CNAME| DDNS
     end
 
     subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
-        DDNS <--->|DynDNS| ROUTER
+        DDNS --->|DynDNS| ROUTER
         ROUTER --> ROUTER_PORT443
         ROUTER --> ROUTER_PORT80
         ROUTER --> ROUTER_PORT51820
@@ -214,6 +209,11 @@ flowchart TB
                     TRAEFIK_ROUTER_MYAPP
                     TRAEFIK_ROUTER_PIHOLE
                     TRAEFIK_ROUTER_3DOTS
+                end
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARE]
+                    REDIRECT(HTTPS redirect)
+                    IP_WHITELISTING(IP whitelist)
+                    BASIC_AUTH(Basic auth)
                 end
                 DOCKER_TRAEFIK_PORT80
                 DOCKER_TRAEFIK_PORT443
@@ -249,29 +249,35 @@ flowchart TB
 
     WIREGUARD_CLIENT_ENDPOINT ---> SUBDOMAIN_WIREGUARD
     WIREGUARD_CLIENT_DNS -->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
-    DNS_ISP ---->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
     ROUTER_PORT51820 -->|port forward| DOCKER_WIREGUARD_PORT51820
-    ROUTER_PORT443 ---->|port forward| DOCKER_TRAEFIK_PORT443
+    ROUTER_PORT443 ------>|port forward| DOCKER_TRAEFIK_PORT443
     ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
+    DNS_ISP ---->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
     PIHOLE_DNS_TRAEFIK --->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
     PIHOLE_DNS_PIHOLE --->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
-    TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT5000
-    TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
-    TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
     DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-    DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+    DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
+    TRAEFIK_ROUTER_MYAPP --> REDIRECT
+    TRAEFIK_ROUTER_PIHOLE --> REDIRECT
+    TRAEFIK_ROUTER_TRAEFIK -->|Dashboard / API| REDIRECT
+    IP_WHITELISTING --> BASIC_AUTH
+    IP_WHITELISTING --> DOCKER_PIHOLE_PORT80
+    REDIRECT --> IP_WHITELISTING
+    REDIRECT ----> DOCKER_MYAPP_PORT5000
+    BASIC_AUTH --> DOCKER_TRAEFIK_PORT8080
     DOCKER_PIHOLE_DNS ---> DOCKER_UNBOUND_PORT53
     UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
 ```
 
-Basically all services will be accessible via dedicated subdomains which will point to our local network through **dynamic DNS**,
+Basically all services will be accessible via dedicated subdomains which will point to our local network, either through **dynamic DNS** or through **local DNS records**,
 then a **reverse proxy** will be responsible for routing the requests to the right application running in **Docker** containers.
 
-In this example **Traefik** (_traefik.example.com_) and **Pihole** (_pihole.example.com_) are only accessible through VPN and from the local network,
-while **Myapp** (_myapp.example.com_) will also be accessible from the internet publicly (no need for VPN).
-
-Note that we make the ISP upstream **DNS** (from **router** configuration) point to the Banana Pi **IP address**,
+We make the **ISP upstream DNS** (from **router** configuration) point to the Banana Pi **IP address**,
 so that we reroute the entire Internet traffic through **Pi-hole** and thus take advantage of its benefits.
+
+In this example **Traefik** (_traefik.example.com_) and **Pi-Hole** (_pihole.example.com_) are only accessible
+through VPN and from the local network thanks to local DNS records and IP whitelisting,
+while **Myapp** (_myapp.example.com_) is also accessible from the internet publicly.
 
 You will find more details on how all this has been implemented later in this guide.
 
@@ -312,6 +318,7 @@ From your machine (**Windows 11** in my case) :
 - Press **SW4** button on the Banana Pi for 2/3s (don't know why and if it is really necessary, but it is specified in the doc)
 - Connect the USB cable from PC to Banana Pi
 - Device should be detected in Amlogic USB Burning Tool, just click "Start" and wait for the operation to complete
+  <img src="images/screen-usb-burning-tool.png" alt="USB Burning Tool screenshot"/>
 - Unplug the USB cable from Banana Pi and PC
 - Plug in the USB-C power cable to the Banana Pi, it should boot on Android
 
@@ -572,14 +579,21 @@ Path:     /usr/libexec/docker/cli-plugins/docker-compose
 
 # Network configuration
 
-Before installing our services, we need to configure the network, so we can reach our applications from the internet.
+Before installing our services, we need to configure the network, so we can reach our applications from different locations.
 
 The idea is to have :
 
 - A main **domain** name
-- A **subdomain** name for each application that must be reachable
+- A **subdomain** name for each application that must be reachable from the internet
 - A **dynamic DNS** name to avoid having to use a **static** public IP address
 - A **Traefik** reverse proxy to handle HTTP request that will be port forwarded to the applications
+
+For services that will not be accessible to the internet, we will use **Pi-Hole**’s ability to manage **local DNS records**
+(each record will point to Banana Pi's internal IP address) so that they are also reachable using a subdomain name.
+
+Here is an overview of the route for each case, when a client request _myapp.example.com_ :
+
+:small_blue_diamond: Internet access :
 
 ```mermaid
 flowchart LR
@@ -588,8 +602,10 @@ flowchart LR
     style INTERNET_SERVICE_PROVIDER fill: #205566
     style TRAEFIK_CONTAINER fill: #663535
     style APPLICATION fill: #663535
-    SUBDOMAIN_MYAPP(myapp.example.com)
-    DDNS(myddns.ddns.net)
+    style SINGLE_BOARD_COMPUTER fill: #665151
+    CLIENT((Client))
+    SUBDOMAIN_MYAPP(myapp\n.example.com)
+    DDNS(myddns\n.ddns.net)
     ROUTER[public IP]
     ROUTER_PORT{{port}}
     DOCKER_TRAEFIK_PORT{{port}}
@@ -600,23 +616,122 @@ flowchart LR
     end
 
     subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
-        SUBDOMAIN_MYAPP -->|CNAME| DDNS
+        DDNS
     end
 
     subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
-        DDNS -->|DynDNS| ROUTER
-        ROUTER --> ROUTER_PORT
+        ROUTER
+        ROUTER_PORT
     end
-        
-    subgraph BANANAPI[BANANA PI]
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI]
         subgraph TRAEFIK_CONTAINER[TRAEFIK]
-            ROUTER_PORT -->|port forward| DOCKER_TRAEFIK_PORT
+            DOCKER_TRAEFIK_PORT
         end
 
         subgraph APPLICATION[APPLICATION]
-            DOCKER_TRAEFIK_PORT -->|HTTP router| APPLICATION_PORT
+            APPLICATION_PORT
         end
     end
+
+    CLIENT --> SUBDOMAIN_MYAPP
+    SUBDOMAIN_MYAPP -->|CNAME| DDNS
+    DDNS -->|DynDNS| ROUTER
+    ROUTER --> ROUTER_PORT
+    ROUTER_PORT -->|port forward| DOCKER_TRAEFIK_PORT
+    DOCKER_TRAEFIK_PORT -->|HTTP router| APPLICATION_PORT
+```
+
+:small_blue_diamond: VPN access :
+
+```mermaid
+flowchart LR
+    style VPN fill: #4d683b
+    style TRAEFIK_CONTAINER fill: #663535
+    style PI_HOLE fill: #663535
+    style APPLICATION fill: #663535
+    style WIREGUARD fill: #663535
+    style SINGLE_BOARD_COMPUTER fill: #665151
+    CLIENT((Client))
+    VPN_CLIENT(DNS)
+    VPN_ENDPOINT(Endpoint)
+    PIHOLE_DNS_MYAPP(myapp\n.example.com)
+    DOCKER_TRAEFIK_PORT{{port}}
+    APPLICATION_PORT{{port}}
+    WIREGUARD_PORT{{port}}
+    PIHOLE_DNS{{port}}
+
+    subgraph VPN[VPN]
+        VPN_CLIENT
+        VPN_ENDPOINT
+    end
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI]
+        subgraph PI_HOLE[PI-HOLE]
+            PIHOLE_DNS
+            PIHOLE_DNS_MYAPP
+        end
+
+        subgraph TRAEFIK_CONTAINER[TRAEFIK]
+            DOCKER_TRAEFIK_PORT
+        end
+
+        subgraph APPLICATION[APPLICATION]
+            APPLICATION_PORT
+        end
+
+        subgraph WIREGUARD[WIREGUARD]
+            WIREGUARD_PORT
+        end
+    end
+
+    VPN_ENDPOINT --> WIREGUARD_PORT
+    CLIENT --> VPN_CLIENT
+    VPN_CLIENT --> PIHOLE_DNS
+    PIHOLE_DNS_MYAPP --->|A| TRAEFIK_CONTAINER
+    DOCKER_TRAEFIK_PORT -->|HTTP router| APPLICATION_PORT
+```
+
+:small_blue_diamond: Local network access :
+
+```mermaid
+flowchart LR
+    style INTERNET_SERVICE_PROVIDER fill: #205566
+    style TRAEFIK_CONTAINER fill: #663535
+    style PI_HOLE fill: #663535
+    style APPLICATION fill: #663535
+    style SINGLE_BOARD_COMPUTER fill: #665151
+    CLIENT((Client))
+    ISP_DNS(DNS)
+    PIHOLE_DNS_MYAPP(myapp\n.example.com)
+    DOCKER_TRAEFIK_PORT{{port}}
+    APPLICATION_PORT{{port}}
+    PIHOLE_DNS{{port}}
+
+    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
+        ISP_DNS
+    end
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI]
+        subgraph PI_HOLE[PI-HOLE]
+            PIHOLE_DNS
+            PIHOLE_DNS_MYAPP
+        end
+
+        subgraph TRAEFIK_CONTAINER[TRAEFIK]
+            DOCKER_TRAEFIK_PORT
+        end
+
+        subgraph APPLICATION[APPLICATION]
+            APPLICATION_PORT
+        end
+
+    end
+
+    CLIENT ---> ISP_DNS
+    ISP_DNS ---> PIHOLE_DNS
+    PIHOLE_DNS_MYAPP --->|A| TRAEFIK_CONTAINER
+    DOCKER_TRAEFIK_PORT -->|HTTP router| APPLICATION_PORT
 ```
 
 > [!NOTE]
@@ -668,7 +783,7 @@ The IP will be updated automatically when a change will be detected.
 You will need to buy a **domain** from you preferred domain provider, for this guide I will use `example.com`.
 
 > [!IMPORTANT]
->I advise you to also subscribe to a **domain privacy** option in order to hide you personal data.
+> I advise you to also subscribe to a **domain privacy** option in order to hide you personal data.
 > Domain Privacy protects the contact information of the owner of a domain name in the **WHOIS directory**.
 > Normally, this public database is used to verify the availability of a domain name and who it belongs to,
 > but marketing companies and scammers can also exploit it for other purposes, like sending spam or identity theft.
@@ -676,25 +791,21 @@ You will need to buy a **domain** from you preferred domain provider, for this g
 Right, we will then use **subdomains** to locate each service as a separate website to avoid having to buy a new domain name for each.
 A subdomain is simply a prefix added to the original domain name, it functions as a separate website from its domain.
 
-So, let's create **subdomains** from the domain name registrar settings, for every service to be exposed on the internet, i.e. :
+So, let's create **subdomains** from the domain name registrar settings, for every service to be exposed on the internet :
 
-- `traefik.example.com` : To access the [Traefik](#reverse-proxy) dashboard
-- `portainer.example.com` : To access the [Portainer](#portainer) application
-- `phpmyadmin.example.com` : To access the [PhpMyAdmin](#phpmyadmin) application
-- `dashboard.example.com` : To access the [Homer](#homer) application
-- `dashdot.example.com` : To access the [Dashdot](#dashdot) application
-- `uptime-kuma.example.com` : To access the [Uptime Kuma](#uptime-kuma) application
+- `wireguard.example.com` : To access the [Wireguard](#wireguard) server
+- `quake.example.com` : To access the [Defrag-life](#defrag-life) website
 
 And add corresponding **CNAME records** to point to the dynamic DNS `myddns.ddns.net` :
 
-- `CNAME	traefik	        myddns.ddns.net`
-- `CNAME	portainer	    myddns.ddns.net`
-- `CNAME	phpmyadmin	    myddns.ddns.net`
-- `CNAME	dashboard	    myddns.ddns.net`
-- `CNAME	dashdot	        myddns.ddns.net`
-- `CNAME	uptime-kuma	    myddns.ddns.net`
+- `CNAME	wireguard	    myddns.ddns.net`
+- `CNAME	quake	        myddns.ddns.net`
 
 A **CNAME record** is just a records which points a name to another name instead of pointing to an IP address (like **A** records).
+
+> [!NOTE]
+> Services that will be only accessible from the local network or through VPN do **not** need to have a subdomain defined at this level.
+> We will use Pi-Hole's **local DNS records** for that. See [Pi-Hole configuration](#pi-hole).
 
 ## Port forwarding
 
@@ -767,40 +878,74 @@ Here is an overview of the network flow :
 flowchart LR
     style INCOMING_REQUEST fill: #205566
     style TRAEFIK_CONTAINER fill: #663535
-    style MYAPP_CONTAINER fill: #69587b
+    style MYAPP1_CONTAINER fill: #663535
+    style MYAPP2_CONTAINER fill: #663535
     style TRAEFIK_ROUTER fill: #806030
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
-    DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_MYAPP_PORT5000{{exposed port}}
-    DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
-    TRAEFIK_ROUTER_MYAPP(myapp.example.com)
-    TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
-    INCOMING_REQUEST[/INCOMING\nREQUEST/]
-    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
-    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
+    style TRAEFIK_MIDDLEWARE fill: #806030
+    style SINGLE_BOARD_COMPUTER fill: #665555
+    style CONTAINER_ENGINE fill: #664545
+    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+DOCKER_TRAEFIK_PORT443{{433/tcp}}
+DOCKER_TRAEFIK_PORT80{{80/tcp}}
+DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
+DOCKER_MYAPP1_PORT{{exposed port}}
+DOCKER_MYAPP2_PORT{{exposed port}}
+TRAEFIK_ROUTER_MYAPP1(myapp1.example.com)
+TRAEFIK_ROUTER_MYAPP2(myapp2.example.com)
+TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
 
-    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
-        subgraph CONTAINER_ENGINE[DOCKER]
-            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
-                DOCKER_MYAPP_PORT5000
-            end
+subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+subgraph CONTAINER_ENGINE[DOCKER]
+subgraph MYAPP1_CONTAINER[MYAPP1 CONTAINER]
+DOCKER_MYAPP1_PORT
+end
+subgraph MYAPP2_CONTAINER[MYAPP2 CONTAINER]
+DOCKER_MYAPP2_PORT
+end
 
-            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
-                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+TRAEFIK_ROUTER_TRAEFIK
+TRAEFIK_ROUTER_MYAPP1
+TRAEFIK_ROUTER_MYAPP2
+end
+subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARE]
+REDIRECT(HTTPS redirect)
+IP_WHITELISTING(IP whitelist)
+BASIC_AUTH(Basic auth)
+end
+DOCKER_TRAEFIK_PORT80
+DOCKER_TRAEFIK_PORT443
+DOCKER_TRAEFIK_PORT8080
+end
 
-                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_MYAPP
-                    TRAEFIK_ROUTER_TRAEFIK
-                end
+end
+end
 
-                TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
-                TRAEFIK_ROUTER_MYAPP --> DOCKER_MYAPP_PORT5000
-            end
+INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
+INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
 
-        end
-    end
+DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
+DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+
+TRAEFIK_ROUTER_TRAEFIK --> REDIRECT
+TRAEFIK_ROUTER_MYAPP1 --> REDIRECT
+TRAEFIK_ROUTER_MYAPP2 --> REDIRECT
+
+REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+
+IP_WHITELISTING --> BASIC_AUTH
+IP_WHITELISTING ---> DOCKER_MYAPP2_PORT
+
+REDIRECT --> IP_WHITELISTING
+REDIRECT ---> DOCKER_MYAPP1_PORT
+
+BASIC_AUTH --> DOCKER_TRAEFIK_PORT8080
 ```
+
+It handles HTTP to HTTPS redirection, IP whitelisting and basic authentication through custom **middlewares**.
+In this example `myapp1` is accessible from the internet, `myapp2` is accessible only through VPN,
+and Traefik (dashboard and APIs) is accessible only through VPN after basic authentication.
 
 ### Installation
 
@@ -809,6 +954,7 @@ First, create a folder to hold data and configuration :
 ```bash
 sudo mkdir /opt/apps/traefik
 ```
+
 Then copy the files from this project's _traefik_ directory into the _/opt/apps/traefik_ directory :
 
 - _docker_compose.yml_ : The Traefik service definition
@@ -820,7 +966,7 @@ Files should be ready to use, simply replace the e-mail address (`admin@example.
 
 You will also need to create the **JSON** file to hold the certificates, see [TLS certificates](#tls-certificates).
 
-Anyway you will find below more details about each file (see [Details](#details)) and some further configuration.
+Anyway you will find below more details about each file (see [Configuration files details](#configuration-files-details)) and some further configuration.
 
 ### Generate basic authentication credentials
 
@@ -842,6 +988,10 @@ You can generate a user/password using **htpasswd** :
 
 Then copy the output to the _credentials.txt_ file.
 
+> [!NOTE]
+> Actually as Traefik will be accessible only from local network and through VPN, we don't really need to set up basic authentication,
+> but it's more for demonstration, and it's always better to have 2 layers of security than one :)
+
 ### TLS certificates
 
 <img src="images/logo-letsencrypt.svg" alt="Let's Encrypt logo" height="64"/>
@@ -852,7 +1002,8 @@ preventing hackers from intercepting any data transmitted between a device and t
 
 We will use **Let's Encrypt**, a nonprofit certificate authority which provide free TLS certificates.
 
-**Let's Encrypt** can automatically generate certificates via Traefik, for that we need to create a `acme.json` file that will hold the generated certificates (file is mapped to a volume in the
+**Let's Encrypt** can automatically generate certificates via Traefik, for that we need to create a `acme.json` file that will hold the generated certificates (file is mapped to a
+volume in the
 **Compose** file), so that the certificates are persisted between container restarts (not generated each time which could raise Let's Encrypt rate limits), we also need to change
 the permissions so that Traefik can access and edit this file :
 
@@ -902,7 +1053,9 @@ dnsChallenge:
 ### IP whitelisting
 
 We will set up **IP whitelisting** so that we can allow only traffic from the local network or from the VPN for some of our services.
-Basically it involves defining a Traefik middleware for defining the IP whitelist and apply it to the needed services.
+Indeed, even if we do not have defined public subdomains for these services, they can still be reached via the IP address!
+
+Basically it involves creating a **Traefik middleware** for defining the IP whitelist and apply it to the needed services.
 
 So we need to allow 2 **IP ranges** :
 
@@ -923,11 +1076,11 @@ networks:
 That way :
 
 - Requests coming from the local network will come with a local address assigned by the router DHCP, and will be **accepted**.
-- Requests coming from the internet through VPN will go through PiHole and will be redirected to Traefik (Pi-hole's local DNS records)
+- Requests coming from the internet through VPN will go through Pi-Hole and will be redirected to Traefik (Pi-hole's local DNS records)
   and thus come with a Traefik Docker network assigned IP address, and will be **accepted**.
 - Requests coming from the internet without VPN will come with a public IP address and will be **rejected** as it will not match any whitelisted address.
 
-### Details
+### Configuration files details
 
 #### Static configuration file :
 
@@ -962,7 +1115,7 @@ log:
   level: info
 ```
 
-Basically it :
+This config file :
 
 - enables the Traefik **dashboard** (UI that provides a detailed overview of the current configuration)
 - defines 2 **entrypoints**, named `web` (for port `80`) and `websecure` (for port `443`) so that we can receive requests on these ports
@@ -1032,7 +1185,7 @@ networks:
     name: traefik-net
 ```
 
-Basically it :
+This Compose file :
 
 - exposes ports `80` and `443` to receive incoming HTTP/HTTPS requests
 - defines a `traefik-net` **network** (which will have to be shared with the services that will use Traefik)
@@ -1107,16 +1260,17 @@ flowchart TB
     style PIHOLE fill: #663535
     style UNBOUND fill: #562525
     style INTERNET fill: #4d683b
-
+    style HOME_NETWORK fill: #765535
+    style 5G_NETWORK fill: #765535
+    style WORK_NETWORK fill: #765535
+    style BANANA_PI fill: #504255
     WINDOWS11(Peer 1 \n Home PC - Windows 11)
     LAPTOP(Peer 2 \n Home laptop - Ubuntu 22)
     MOBILE(Peer 3 \n Phone - Android 14)
     MACOS(Peer 4 \n Work PC - MacOS 13)
-
     WIREGUARD_SERVER(WireGuard server - Secure VPN)
     PIHOLE(Pi-Hole - Firewall & ad-blocking)
     UNBOUND(Unbound - Custom DNS resolver)
-
     INTERNET((Internet))
 
     subgraph HOME_NETWORK[Home network]
@@ -1142,11 +1296,8 @@ flowchart TB
     LAPTOP -- WireGuard tunnel --> WIREGUARD_SERVER
     MOBILE -- WireGuard tunnel --> WIREGUARD_SERVER
     MACOS -- WireGuard tunnel --> WIREGUARD_SERVER
-
     WIREGUARD_SERVER -- DNS queries --> PIHOLE
-
     PIHOLE -- Filtered DNS queries --> UNBOUND
-
     UNBOUND -- DNS resolution --> INTERNET
 ```
 
@@ -1165,7 +1316,17 @@ Then from this project's _wireguard_ directory, copy into the _/opt/apps/wiregua
 - the _.env_ file which holds some environment variables to be used in the Compose file
 - the _docker-compose.yml_ file which contains all the Docker services configuration
 
-For more details about each file, see [Details](#details-1).
+You may have to manually create the following files before running the Compose file,
+to be able to mount them into the Unbound container :
+
+- _a-records.conf_
+- _forward-records.conf_
+- _srv-records.conf_
+
+These files are useful in case you want to override default configuration.
+You can find default ones from the Unbound **GitHub** repository.
+
+For more details about the Compose file, see [Configuration files details](#configuration-files-details-1).
 
 Now let's take a look at the configuration for each service.
 
@@ -1175,7 +1336,7 @@ Now let's take a look at the configuration for each service.
 
 <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="128"/>
 
-The Compose file will run a **Wireguard server**, which will need to be configured.
+The Compose file will run a **Wireguard server**, which need to be configured.
 
 First, after WireGuard installation, it is recommended to change the permissions of the _wg0.conf_ file (holding the server configuration) :
 
@@ -1183,7 +1344,7 @@ First, after WireGuard installation, it is recommended to change the permissions
 chmod 600 /etc/wireguard/wg0.conf
 ```
 
-else in the logs you will see a log :
+else in the logs you will see a warning :
 
 > Warning: `/config/wg_confs/wg0.conf' is world accessible
 
@@ -1196,7 +1357,8 @@ Then you can do the configuration using WireGuard UI (accessible at https://wire
 In **Global Settings** menu :
 
 - set **Endpoint Address** to `wireguard.example.com`, this is the public IP address of your WireGuard server that every client will connect to
-- set **DNS Servers** to `10.2.0.100` (Pi hole address defined in Docker Compose) instead of `1.1.1.1` (Cloudflare) so that all clients traffic goes through Pi-Hole (and then Unbound)
+- set **DNS Servers** to `10.2.0.100` (Pi hole address defined in Docker Compose) instead of `1.1.1.1` (Cloudflare) so that all clients traffic goes through Pi-Hole (and then
+  Unbound)
 
 In **WireGuard Server** menu :
 
@@ -1205,13 +1367,15 @@ In **WireGuard Server** menu :
 
 ##### Firewall rules
 
-We have to set some firewall rules as our WireGuard VPN is running in a Docker container, indeed we need to :
+We have to set some firewall rules as our WireGuard VPN is running in a Docker container, we need to :
+
 - allow packets to be routed through the WireGuard server, by setting up `FORWARD` rules
 - allow WireGuard clients to access the Internet, by configuring **NAT** (Network Address Translation) rules
 
 So basically we need to deal with 3 interfaces of our container :
+
 - `eth0@ifxx` : virtual interface that route packets from/to the Traefik Docker bridge network, handling incoming traffic from all peers
-- `eth1@ifxx` : virtual interface that route packets from/to the Wireguard container, for communication within the WireGuard container
+- `eth1@ifxx` : virtual interface that route packets from/to the WireGuard container, for communication within the WireGuard container
 - `wg0` : the WireGuard interface
 
 > [!Note]
@@ -1221,11 +1385,13 @@ So basically we need to deal with 3 interfaces of our container :
 You can run the following commands to list network interfaces from the container, which may differ depending on your configuration :
 
 First get into the container :
+
 ```shell
 sudo docker exec -it wireguard bash
 ```
 
 Then run :
+
 ```shell
 ip link show
 ```
@@ -1285,13 +1451,12 @@ The rules will then be cleared once the tunnel is down.
 > [!Note]
 > I used the old deprecated **iptables** to set firewall rules, but you may better use **nftables** which is the successor to iptables
 
-The first 2 rules allow packets to be forwarded between interfaces, for traffic originating from the WireGuard interface `wg0` (rule 1), and heading out of `wg0` (rule 2).
-These two rules allow forwarding so every traffic going in or out of the WireGuard interface can be forwarded (routed).
-The last rule translates incoming IPs to the IP on every `eth` interface, so basically NAT.
-
 `%1` is a placeholder for the network interface connected to the WireGuard container, so here `wg0`.
 `eth+` is a pattern used in iptables to match network interfaces that start with the prefix `eth`, so it matches our 2 virtual interfaces.
 
+The first 2 rules allow packets to be forwarded between interfaces, for traffic originating from the WireGuard interface `wg0` (rule 1), and heading out of `wg0` (rule 2).
+These two rules allow forwarding so every traffic going in or out of the WireGuard interface can be forwarded (routed).
+The last rule translates incoming IPs to the IP on every `eth` interface, so basically **NAT**.
 
 You can see that iptables are applied by running :
 
@@ -1313,7 +1478,7 @@ Result :
 > target     prot opt source               destination
 > ```
 
-Or for the NAT table :
+And for the NAT table :
 
 ```shell
 iptable -t nat -L
@@ -1339,8 +1504,8 @@ Result :
 
 In **WireGuard Clients** settings, create a new client :
 
-- name :  Desktop-home
-- e-mail : your.email@example.com
+- name :  `desktop-home` (for example)
+- e-mail : `your.email@example.com`
 
 It should propose IP allocation of `10.10.1.2/32` for first client, then `10.10.1.3/32`, and so on as we set server interface address to `10.10.1.1/24`.
 
@@ -1348,11 +1513,11 @@ By default, allowed IPs is set to `0.0.0.0/0`, which will block untunneled traff
 Change it to `0.0.0.0/1, 128.0.0.0/1` to reroute all traffic to the WireGuard tunnel.
 Using `/1` instead of `/0` ensure that it takes precedence over the default `/0` route.
 
-Finally, to use a VPN client :
+Finally, to configure a VPN client :
 
-- export config file for your client
-- install WireGuard client on your client machine
-- load config file from client
+1. Export config file for your client
+2. Install WireGuard client on your client machine
+3. Load config file from client
 
 Do this for each client on every device you need.
 
@@ -1362,17 +1527,36 @@ Do this for each client on every device you need.
 
 <img src="images/logo-pihole.svg" alt="Pi-Hole logo" height="128"/>
 
-**Pi-hole** is a network-level ad blocking and internet tracker blocking application.
-It has the ability to block traditional website advertisements as well as advertisements in unconventional places such as mobile apps ads.
-It can also be used as a DNS server and has a built-in DHCP server.
+The Compose file will run a **Pi-Hole** instance which need to be configured.
 
-In Pi-Hole go to Settings -> Interface settings and choose "Permit all origins" so that traffic from wireguard can be seen.
-Go to local DNS -> DNS records and add DNS record for every subdomain :
+First, we need to change **interface settings** to allow the traffic from other interfaces (especially for our VPN).
+By default, it allows only queries from local devices.
+
+So, reach Pi-Hole at https://pihole.example.com and go to _Settings -> Interface settings_ and choose _"Permit all origins"_ so that the traffic from WireGuard can be seen.
+
+Then we need to add **local DNS records** so that the domain names can be resolved from VPN or local network (remember we have routed all the traffic through Pi-Hole).
+We simply need to associate domain names with the internal IP address of the Banana Pi, so they can be handled by the reverse proxy.
+
+Go to _local DNS -> DNS records_ and add a **DNS record entry** for every subdomain that should be available through VPN :
 
 ```
-ackee.example.com 192.168.0.17
-chachatte.example.com 192.168.0.17
+ackee.example.com                   192.168.0.17
+dashboard.example.com               192.168.0.17
+dashdot.example.com                 192.168.0.17
+kuma.example.com                    192.168.0.17
+phpmyadmin.example.com              192.168.0.17
+pihole.example.com                  192.168.0.17
+portainer.example.com               192.168.0.17
+traefik.example.com                 192.168.0.17
+wireguard-ui.example.com            192.168.0.17
 ```
+
+No need to add domains that are reachable from the internet as they will be reachable directly over HTTPS without going through our Pi-Hole.
+
+You can also configure rate limiting (default to **1000 queries per minute**), domain whitelisting, DNS settings, etc. but I will not go through all Pi-Hole configuration, the
+default should work just fine.
+
+If it is working you should be able to see activity in the dashboard.
 
 <img src="images/screen-pihole.png" alt="Pi-hole screenshot"/>
 
@@ -1380,42 +1564,16 @@ chachatte.example.com 192.168.0.17
 
 <img src="images/logo-unbound.svg" alt="Unbound logo" height="128"/>
 
-You may have to manually create the files :
+There is nothing special to do about **Unbound** configuration, we can keep the default configuration.
 
-a-records.conf
-forward-records.conf
-srv-records.conf
-
-You can find the files from the unbound GitHub repository.
-
-To activate logging, edit the _/etc/unbound/unbound.conf_ configuration file :
+Maybe if you want to activate logging, edit the _/etc/unbound/unbound.conf_ configuration file :
 
 ```
 verbosity: 1
 log-queries: yes
 ```
 
-Configure your devices to use PiHole, This can be done in one of 3 ways:
-
-- Network-wide at the router level
-- Network-wide with the PiHole as DHCP
-- Specific devices only
-
-Here is the wirehole generated configuration in my case :
-
-- network subnet : `10.2.0.0/24` (every IP in the network will be between `10.2.0.1` and `10.2.0.254`)
-    - PiHole IP : `10.2.0.100`
-    - Unbound IP : `10.2.0.200`
-    - WireGuard IP : `10.2.0.3`
-        - Internal subnet : `10.6.0.0`
-            - wg0 :
-                - interface : `10.6.0.1`
-                - peer allowed IPs : `10.6.0.2/32`
-            - peer1 :
-                - interface : `10.6.0.2` (DNS : `10.2.0.100`)
-                - peer allowed IPs : `0.0.0.0/0` (endpoint : `wireguard.example.com:51820`)
-
-### Details
+### Configuration files details
 
 #### Environment variables
 
@@ -1426,6 +1584,8 @@ WIREGUARD_UI_USERNAME=<username>
 WIREGUARD_UI_PASSWORD=<password>
 PIHOLE_PASSWORD=<password>
 ```
+
+It simply defines environment variables to be used in the Docker Compose file.
 
 #### Services definition
 
@@ -1464,7 +1624,7 @@ services:
         ipv4_address: 10.2.0.200
 
   wireguard:
-    depends_on: [unbound, pihole]
+    depends_on: [ unbound, pihole ]
     image: linuxserver/wireguard:latest
     container_name: wireguard
     cap_add:
@@ -1472,7 +1632,7 @@ services:
     volumes:
       - ./wireguard:/config
     ports:
-      - "51820:51820/udp" # port of the wireguard server
+      - "51820:51820/udp"
     restart: unless-stopped
     environment:
       - PUID=1000
@@ -1496,10 +1656,10 @@ services:
   wireguard-ui:
     image: ngoduykhanh/wireguard-ui:latest
     container_name: wireguard-ui
-    depends_on: [unbound, wireguard]
+    depends_on: [ unbound, wireguard ]
     cap_add:
       - NET_ADMIN
-    # use the network of the 'wireguard' service. this enables to show active clients in the status page
+    # use the network of the 'wireguard' service, this enables to show active clients in the status page
     network_mode: service:wireguard
     env_file: ./.env
     environment:
@@ -1521,7 +1681,7 @@ services:
       - ./wireguard:/etc/wireguard
 
   pihole:
-    depends_on: [unbound]
+    depends_on: [ unbound ]
     container_name: pihole
     image: pihole/pihole:latest
     restart: unless-stopped
@@ -1540,19 +1700,17 @@ services:
       - "traefik.docker.network=traefik-net"
     dns:
       - 127.0.0.1
-      - 10.2.0.200 # Points to unbound
+      - 10.2.0.200 # Unbound IP
     environment:
       TZ: "Europe/Zurich"
-      WEBPASSWORD: $PIHOLE_PASSWORD # Blank password - Can be whatever you want.
-      ServerIP: 10.2.0.100 # Internal IP of pihole
+      WEBPASSWORD: $PIHOLE_PASSWORD
+      ServerIP: 10.2.0.100 # Internal IP of pi-hole
       DNS1: 10.2.0.200 # Unbound IP
       DNS2: 10.2.0.200 # If we don't specify two, it will auto pick google.
-    # Volumes store your data between container upgrades
     volumes:
       - "./etc-pihole/:/etc/pihole/"
       - "./etc-dnsmasq.d/:/etc/dnsmasq.d/"
     # Recommended but not required (DHCP needs NET_ADMIN)
-    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
     cap_add:
       - NET_ADMIN
     networks:
@@ -1560,6 +1718,44 @@ services:
         ipv4_address: 10.2.0.100
       traefik-net:
 ```
+
+This Compose file roughly :
+
+- Defines a `wireguard_net` **network** to hold our 4 WireGuard-related services, with the assigned subnet address `10.2.0.0/24` (**CIDR** notation)
+- Reference the `traefik-net` Traefik network so that services can use it and be discoverable by Traefik
+- defines our 4 services (WireGuard, WireGuard UI, Pi-Hole, Unbound) :
+    - `unbound` service :
+        - defines **volumes** to bind configuration files, in case you want to override default configuration
+        - assigns the **static IP address** `10.2.0.200` for the container inside the WireGuard network
+    - `wireguard` service :
+        - defines a **volume** to bind configuration file
+        - adds network capability `NET_ADMIN` to grant the container the ability to perform various network-related tasks
+          (like configuring network interfaces or changing routing tables) required be the service
+        - enables the `net.ipv4.conf.all.src_valid_mark` sysctl setting to activate source address validation, which helps in preventing IP spoofing attacks
+        - uses Traefik **labels** to :
+            - create a **service** which will point to our container application running on port `5000`
+            - create an HTTP **router** that will match `wireguard-ui.example.com` URL on our `websecure` **entrypoint** to point to our service
+            - assign the `vpn-whitelist` **middleware** so that the traffic will be restricted to allowed IPs only (application reachable only from local network or through VPN)
+            - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+        - assigns `the` **static IP address** `10.2.0.3` for the container inside the WireGuard network
+    - `wireguard-ui` service :
+        - add network capability `NET_ADMIN` to grant the container the ability to perform various network-related tasks
+          (like configuring network interfaces or changing routing tables) required be the service
+        - uses the network of the `wireguard` service
+        - references the _.env_ file containing some defined environment variables values
+        - defines JSON file logging with a max size of 50 MB
+    - `pihole` service :
+        - defines **volumes** to bind configuration files
+        - references the _.env_ file containing some defined environment variables values
+        - uses Traefik **labels** to :
+            - create a **service** which will point to our container application running on port `80`
+            - create an HTTP **router** that will match `pihole.example.com` URL on our `websecure` **entrypoint** to point to our service
+            - assign the `vpn-whitelist` **middleware** so that the traffic will be restricted to allowed IPs only (application reachable only from local network or through VPN)
+            - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+        - sets DNS to point to Unbound
+        - adds network capability `NET_ADMIN` to grant the container the ability to perform various network-related tasks
+          (like configuring network interfaces or changing routing tables) required be the service
+        - assigns the **static IP address** `10.2.0.100` for the container inside the WireGuard network
 
 ### Run
 
@@ -1571,17 +1767,20 @@ sudo docker-compose -f /opt/apps/wireguard/docker_compose.yml up -d
 
 You should end-up with **4** running containers :
 
-- wireguard
-- wireguard-ui
-- pihole
-- unbound
+- `wireguard`
+- `wireguard-ui`
+- `pihole`
+- `unbound`
 
 It should also have generated the needed Let's Encrypt certificates in the _acme.json_ file.
 
-Unbound is not exposed but you can reach :
+Unbound is not exposed, but you can reach other services :
 
-- the VPN server at https://wireguard.example.com and its GUI at https://wireguard-ui.example.com
+- WireGuard server at https://wireguard.example.com
+- WireGuard GUI at https://wireguard-ui.example.com
 - Pi-Hole at https://pihole.example.com
+
+# Install services
 
 ## Portainer
 
@@ -1597,31 +1796,44 @@ Here is an overview of the network flow :
 flowchart LR
     style INCOMING_REQUEST fill: #205566
     style TRAEFIK_CONTAINER fill: #663535
-    style PORTAINER_CONTAINER fill: #663535
+    style APP_CONTAINER fill: #663535
     style TRAEFIK_ROUTER fill: #806030
+    style TRAEFIK_MIDDLEWARE fill: #806030
+    style SINGLE_BOARD_COMPUTER fill: #665555
+    style CONTAINER_ENGINE fill: #664545
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_PORTAINER_PORT9000{{9000/tcp}}
-    TRAEFIK_ROUTER_PORTAINER(portainer.example.com)
-    INCOMING_REQUEST[/INCOMING REQUEST/]
+    DOCKER_APP_PORT{{9000/tcp}}
+    TRAEFIK_ROUTER_APP(portainer.example.com)
+    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
+    TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
+    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
     subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
         subgraph CONTAINER_ENGINE[DOCKER]
-            subgraph PORTAINER_CONTAINER[PORTAINER CONTAINER]
-                DOCKER_PORTAINER_PORT9000
+            subgraph APP_CONTAINER[PORTAINER CONTAINER]
+                DOCKER_APP_PORT
             end
 
             subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
                 DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
 
                 subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_PORTAINER
+                    TRAEFIK_ROUTER_APP
                 end
 
-                TRAEFIK_ROUTER_PORTAINER --> DOCKER_PORTAINER_PORT9000
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
+                    TRAEFIK_MIDDLEWARE_REDIRECT
+                    TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                end
+
+                TRAEFIK_MIDDLEWARE_REDIRECT --> TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_MIDDLEWARE_IP_WHITELIST --> DOCKER_APP_PORT
+                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
             end
 
         end
@@ -1642,7 +1854,7 @@ Then simply copy the _docker-compose.yml_ file from this project's _portainer_ d
 
 #### Service definition
 
-_docker-compose.yml_ :
+:page_facing_up: _docker-compose.yml_ :
 
 ```yaml
 version: "3.8"
@@ -1724,31 +1936,44 @@ Here is an overview of the network flow :
 flowchart LR
     style INCOMING_REQUEST fill: #205566
     style TRAEFIK_CONTAINER fill: #663535
-    style PHPMYADMIN_CONTAINER fill: #663535
+    style APP_CONTAINER fill: #663535
     style TRAEFIK_ROUTER fill: #806030
+    style TRAEFIK_MIDDLEWARE fill: #806030
+    style SINGLE_BOARD_COMPUTER fill: #665555
+    style CONTAINER_ENGINE fill: #664545
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_PHPMYADMIN_PORT80{{80/tcp}}
-    TRAEFIK_ROUTER_PHPMYADMIN(phpmyadmin.example.com)
-    INCOMING_REQUEST[/INCOMING REQUEST/]
+    DOCKER_APP_PORT{{80/tcp}}
+    TRAEFIK_ROUTER_APP(phpmyadmin.example.com)
+    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
+    TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
+    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
     subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
         subgraph CONTAINER_ENGINE[DOCKER]
-            subgraph PHPMYADMIN_CONTAINER[PHPMYADMIN CONTAINER]
-                DOCKER_PHPMYADMIN_PORT80
+            subgraph APP_CONTAINER[PHPMYADMIN CONTAINER]
+                DOCKER_APP_PORT
             end
 
             subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
                 DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
+                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
 
                 subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_PHPMYADMIN
+                    TRAEFIK_ROUTER_APP
                 end
 
-                TRAEFIK_ROUTER_PHPMYADMIN --> DOCKER_PHPMYADMIN_PORT80
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
+                    TRAEFIK_MIDDLEWARE_REDIRECT
+                    TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                end
+
+                TRAEFIK_MIDDLEWARE_REDIRECT --> TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_MIDDLEWARE_IP_WHITELIST --> DOCKER_APP_PORT
+                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
             end
 
         end
@@ -1838,8 +2063,6 @@ The application is available at https://phpmyadmin.example.com.
 
 <img src="images/screen-phpmyadmin.png" alt="PhpMyAdmin screenshot"/>
 
-# Install services
-
 ## Homer
 
 <img src="images/logo-homer.png" alt="Homer logo"/>
@@ -1847,6 +2070,54 @@ The application is available at https://phpmyadmin.example.com.
 **Homer** is a simple application that allows to generate a static homepage from a simple `yaml` configuration file.
 
 We will use it as a dashboard to list our services.
+
+```mermaid
+flowchart LR
+    style INCOMING_REQUEST fill: #205566
+    style TRAEFIK_CONTAINER fill: #663535
+    style APP_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    style TRAEFIK_MIDDLEWARE fill: #806030
+    style SINGLE_BOARD_COMPUTER fill: #665555
+    style CONTAINER_ENGINE fill: #664545
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_APP_PORT{{8080/tcp}}
+    TRAEFIK_ROUTER_APP(dashboard.example.com)
+    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
+    TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
+    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph APP_CONTAINER[HOMER CONTAINER]
+                DOCKER_APP_PORT
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_APP
+                end
+
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
+                    TRAEFIK_MIDDLEWARE_REDIRECT
+                    TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                end
+
+                TRAEFIK_MIDDLEWARE_REDIRECT --> TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_MIDDLEWARE_IP_WHITELIST --> DOCKER_APP_PORT
+                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
+            end
+
+        end
+    end
+```
 
 ### Setting up
 
@@ -1874,16 +2145,174 @@ Then copy :
 
 ### Details
 
+#### Service definition
+
+:page_facing_up: _docker-compose.yml_ :
+
+```yaml
+version: "3.8"
+
+services:
+
+  homer:
+    image: b4bz/homer:latest
+    container_name: homer
+    volumes:
+      - ./assets/:/www/assets
+    user: 1000:1000
+    restart: unless-stopped
+    environment:
+      - INIT_ASSETS=0
+    networks:
+      - homer-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homer.rule=Host(`dashboard.example.com`)"
+      - "traefik.http.routers.homer.entrypoints=websecure"
+      - "traefik.http.routers.homer.tls.certresolver=default"
+      - "traefik.http.routers.homer.middlewares=vpn-whitelist"
+      - "traefik.http.services.homer.loadbalancer.server.port=8080"
+      - "traefik.docker.network=traefik-net"
+
+networks:
+
+  homer-net:
+    name: homer-net
+
+  traefik-net:
+    name: traefik-net
+    external: true
+```
+
 Things to notice :
 
 - Homer's assets data is bound to a local directory named `assets`
 - It sets the `INIT_ASSETS` environment variable to `0` to avoid generating default example data
 - It sets a user with **uid** and **gid** `1000` to run the application in the container
-- It uses Traefik **labels** to create :
-    - a **service** which will point to our container application running on port `8080`
-    - an HTTP **router** that will match `dashboard.example.com` URL on our `websecure` **entrypoint** to point to our service
-    - a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+- It uses Traefik **labels** to :
+    - create a **service** which will point to our container application running on port `8080`
+    - create an HTTP **router** that will match `dashboard.example.com` URL on our `websecure` **entrypoint** to point to our service
+    - assign the `vpn-whitelist` **middleware** so that the traffic will be restricted to allowed IPs only (application reachable only from local network or through VPN)
+    - add **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
 - It runs in its own network (`homer-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
+
+#### Configuration file
+
+:page_facing_up: _config.yml_ :
+
+```yaml
+header: false
+footer: false
+
+# Optional theme customization
+theme: default
+colors:
+  light:
+    highlight-primary: "#3367d6"
+    highlight-secondary: "#4285f4"
+    highlight-hover: "#5a95f5"
+    background: "#f5f5f5"
+    card-background: "#ffffff"
+    text: "#363636"
+    text-header: "#ffffff"
+    text-title: "#303030"
+    text-subtitle: "#424242"
+    card-shadow: rgba(0, 0, 0, 0.1)
+    link: "#3273dc"
+    link-hover: "#363636"
+  dark:
+    highlight-primary: "#3367d6"
+    highlight-secondary: "#515185"
+    highlight-hover: "#50668b"
+    background: "#131313"
+    card-background: "#2b2b2b"
+    text: "#eaeaea"
+    text-header: "#ffffff"
+    text-title: "#fafafa"
+    text-subtitle: "#f5f5f5"
+    card-shadow: rgba(0, 0, 0, 0.4)
+    link: "#3273dc"
+    link-hover: "#ffdd57"
+
+services:
+  - name: "Admin tools"
+    icon: "fas fa-cloud"
+    items:
+      - name: "Dashdot"
+        logo: "https://getdashdot.com/img/logo512.png"
+        subtitle: "Minimal server monitoring"
+        tag: "dashboard"
+        url: "https://dashdot.example.com"
+      - name: "Traefik"
+        logo: "https://cdn.worldvectorlogo.com/logos/traefik-1.svg"
+        subtitle: "HTTP reverse proxy"
+        tag: "network"
+        url: "https://traefik.example.com"
+      - name: "Portainer"
+        logo: "https://cdn.worldvectorlogo.com/logos/portainer.svg"
+        subtitle: "Container management platform"
+        tag: "tool"
+        url: "https://portainer.example.com"
+      - name: "Uptime Kuma"
+        logo: "https://uptime.kuma.pet/img/icon.svg"
+        subtitle: "Application monitoring tool"
+        tag: "monitoring"
+        url: "https://kuma.example.com/status/dashboard"
+      - name: "Wireguard UI"
+        logo: "https://seeklogo.com/images/W/wireguard-logo-259B3D155A-seeklogo.com.png"
+        subtitle: "Simple yet fast and modern VPN"
+        tag: "network"
+        url: "https://wireguard-ui.example.com/status"
+      - name: "Pi-Hole"
+        logo: "https://pihole.example.com/admin/img/logo.svg"
+        subtitle: "Network-wide ad blocking"
+        tag: "network"
+        url: "https://pihole.example.com/admin"
+      - name: "Ackee"
+        logo: "https://s.electerious.com/images/ackee/icon.png"
+        subtitle: "Analytics tool that cares about privacy"
+        tag: "analytics"
+        url: "https://ackee.example.com"
+      - name: "Sablier"
+        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Circle-icons-hourglass.svg/240px-Circle-icons-hourglass.svg.png"
+        subtitle: "Workload scaling on demand"
+        tag: "tool"
+      - name: "Unbound"
+        logo: "https://i.imgur.com/cnsNS1O.png"
+        subtitle: "Validating, recursive, and caching DNS resolver"
+        tag: "network"
+      - name: "PhpMyAdmin"
+        logo: "https://icon-library.com/images/phpmyadmin-icon/phpmyadmin-icon-24.jpg"
+        subtitle: "MySQL database management"
+        tag: "tool"
+        url: "https://phpmyadmin.example.com"
+      - name: "Kopia"
+        logo: "https://www.myqnap.org/wp-content/uploads/kopia-logo.png"
+        subtitle: "Backup/restore tool"
+        tag: "tool"
+        url: "https://kopia.example.com"
+      - name: "Lychee"
+        logo: "https://avatars.githubusercontent.com/u/37916028?s=200&v=4"
+        subtitle: "Photo management tool"
+        tag: "tool"
+        url: "https://lychee.example.com"
+  - name: "Applications"
+    icon: "fas fa-globe"
+    items:
+      - name: "Motoclub GraphQL API"
+        logo: "https://cdn-icons-png.flaticon.com/512/705/705647.png"
+        subtitle: "GraphQL API for our motoclub mobile application"
+        tag: "app"
+        url: "https://chachatte.example.com/chachatte-gql/graphql"
+      - name: "Defrag-life"
+        logo: "https://cdn2.steamgriddb.com/file/sgdb-cdn/icon_thumb/946af3555203afdb63e571b873e419f6.png"
+        subtitle: "Quake 3 arena Defrag website"
+        tag: "app"
+        url: "https://quake.example.com"
+```
+
+This is simply the configuration file that is used by the application to display the dashboard page.
 
 ### Run
 
@@ -1907,6 +2336,54 @@ The application will be available at https://dashboard.example.com.
 
 **Dashdot** is a modern application to monitor server resources through a basic UI.
 
+```mermaid
+flowchart LR
+    style INCOMING_REQUEST fill: #205566
+    style TRAEFIK_CONTAINER fill: #663535
+    style APP_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    style TRAEFIK_MIDDLEWARE fill: #806030
+    style SINGLE_BOARD_COMPUTER fill: #665555
+    style CONTAINER_ENGINE fill: #664545
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_APP_PORT{{3001/tcp}}
+    TRAEFIK_ROUTER_APP(dashdot.example.com)
+    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
+    TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
+    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph APP_CONTAINER[DASHDOT CONTAINER]
+                DOCKER_APP_PORT
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_APP
+                end
+
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
+                    TRAEFIK_MIDDLEWARE_REDIRECT
+                    TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                end
+
+                TRAEFIK_MIDDLEWARE_REDIRECT --> TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_MIDDLEWARE_IP_WHITELIST --> DOCKER_APP_PORT
+                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
+            end
+
+        end
+    end
+```
+
 ### Setting up
 
 Create a folder to hold the configuration :
@@ -1919,20 +2396,53 @@ Then simply copy the _docker-compose.yml_ file from this project's _dashdot_ dir
 
 ### Details
 
+#### Service definition
+
+:page_facing_up: _docker-compose.yml_ :
+
+```yaml
+version: "3.8"
+
+services:
+
+  dashdot:
+    image: mauricenino/dashdot:latest
+    container_name: dashdot
+    restart: unless-stopped
+    volumes:
+      - /:/mnt/host:ro
+    networks:
+      - dashdot-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashdot.rule=Host(`dashdot.example.com`)"
+      - "traefik.http.routers.dashdot.entrypoints=websecure"
+      - "traefik.http.routers.dashdot.tls.certresolver=default"
+      - "traefik.http.routers.dashdot.middlewares=vpn-whitelist"
+      - "traefik.http.services.dashdot.loadbalancer.server.port=3001"
+      - "traefik.docker.network=traefik-net"
+
+networks:
+
+  dashdot-net:
+    name: dashdot-net
+
+  traefik-net:
+    name: traefik-net
+    external: true
+```
+
 Things to notice :
 
 - Dashdot's data is bound to the current directory (read-only)
-- It uses Traefik **labels** to create :
-    - a **service** which will point to our container application running on port `3001`
-    - an HTTP **router** that will match `dashdot.example.com` URL on our `websecure` **entrypoint** to point to our service
-    - a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
-    - a **middleware** to whitelist an IP range via the `sourceRange` option which sets the allowed IPs to be the local and VPN client IPs (by using **CIDR** notation)
+- It uses Traefik **labels** to :
+    - create a **service** which will point to our container application running on port `3001`
+    - create an HTTP **router** that will match `dashdot.example.com` URL on our `websecure` **entrypoint** to point to our service
+    - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+    - assign the `vpn-whitelist` **middleware** so that the traffic will be restricted to allowed IPs only (application reachable only from local network or through VPN)
+    - create a **middleware** to whitelist an IP range via the `sourceRange` option which sets the allowed IPs to be the local and VPN client IPs (by using **CIDR** notation)
 - It runs in its own **network** (`dashdot-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
-
-We whitelist the following IPs :
-
-- `192.168.0.0/24` : The IPs given to any device on our local network
-- `172.28.0.0/16` : The IPs in the Traefik Docker bridge network
 
 ### Run
 
@@ -1956,6 +2466,54 @@ The application is available at https://dashdot.example.com.
 
 **Uptime Kuma** is a monitoring tool allowing to monitor application uptime with a simple UI.
 
+```mermaid
+flowchart LR
+    style INCOMING_REQUEST fill: #205566
+    style TRAEFIK_CONTAINER fill: #663535
+    style APP_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    style TRAEFIK_MIDDLEWARE fill: #806030
+    style SINGLE_BOARD_COMPUTER fill: #665555
+    style CONTAINER_ENGINE fill: #664545
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_APP_PORT{{3001/tcp}}
+    TRAEFIK_ROUTER_APP(kuma.example.com)
+    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
+    TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
+    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph APP_CONTAINER[UPTIME-KUMA CONTAINER]
+                DOCKER_APP_PORT
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_APP
+                end
+
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
+                    TRAEFIK_MIDDLEWARE_REDIRECT
+                    TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                end
+
+                TRAEFIK_MIDDLEWARE_REDIRECT --> TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_MIDDLEWARE_IP_WHITELIST --> DOCKER_APP_PORT
+                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
+            end
+
+        end
+    end
+```
+
 ### Setting up
 
 Create a folder to hold the configuration :
@@ -1968,13 +2526,56 @@ Then simply copy the _docker-compose.yml_ file from this project's _uptime-kuma_
 
 ### Details
 
+#### Service definition
+
+:page_facing_up: _docker-compose.yml_ :
+
+```yaml
+version: "3.8"
+
+services:
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    volumes:
+      - uptime-kuma:/app/data
+    restart: unless-stopped
+    networks:
+      - uptime-kuma-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptime-kuma.rule=Host(`uptime-kuma.example.com`)"
+      - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
+      - "traefik.http.routers.uptime-kuma.tls.certresolver=default"
+      - "traefik.http.routers.uptime-kuma.middlewares=vpn-whitelist"
+      - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
+      - "traefik.docker.network=traefik-net"
+
+volumes:
+
+  uptime-kuma:
+    name: uptime-kuma-vol
+
+networks:
+
+  uptime-kuma-net:
+    name: uptime-kuma-net
+
+  traefik-net:
+    name: traefik-net
+    external: true
+```
+
 Things to notice :
 
 - Uptime Kuma's data is bound to a **Docker volume** named `uptime-kuma-vol`
-- It uses Traefik **labels** to create :
-    - a **service** which will point to our container application running on port `3001`
-    - an HTTP **router** that will match `uptime-kuma.example.com` URL on our `websecure` **entrypoint** to point to our service
-    - a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+- It uses Traefik **labels** to :
+    - create a **service** which will point to our container application running on port `3001`
+    - create an HTTP **router** that will match `uptime-kuma.example.com` URL on our `websecure` **entrypoint** to point to our service
+    - assign the `vpn-whitelist` **middleware** so that the traffic will be restricted to allowed IPs only (application reachable only from local network or through VPN)
+    - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
 - It runs in its own **network** (`uptime-kuma-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
 
 ### Run
@@ -1998,6 +2599,57 @@ The application is available at https://uptime-kuma.example.com.
 **Ackee** is an analytics tool that analyzes the traffic of any website and provides useful statistics in a minimal interface.
 
 We will connect it to our PHP website.
+
+```mermaid
+flowchart LR
+    style INCOMING_REQUEST fill: #205566
+    style TRAEFIK_CONTAINER fill: #663535
+    style APP_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    style TRAEFIK_MIDDLEWARE fill: #806030
+    style SINGLE_BOARD_COMPUTER fill: #665555
+    style CONTAINER_ENGINE fill: #664545
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_APP_PORT{{3000/tcp}}
+    TRAEFIK_ROUTER_APP(ackee.example.com)
+    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
+    TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
+    TRAEFIK_MIDDLEWARE_CORS(CORS)
+    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph APP_CONTAINER[ACKEE CONTAINER]
+                DOCKER_APP_PORT
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_APP
+                end
+
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
+                    TRAEFIK_MIDDLEWARE_REDIRECT
+                    TRAEFIK_MIDDLEWARE_CORS
+                    TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                end
+
+                TRAEFIK_MIDDLEWARE_REDIRECT --> TRAEFIK_MIDDLEWARE_CORS
+                TRAEFIK_MIDDLEWARE_CORS --> TRAEFIK_MIDDLEWARE_IP_WHITELIST
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_MIDDLEWARE_IP_WHITELIST --> DOCKER_APP_PORT
+                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
+            end
+
+        end
+    end
+```
 
 ### Setting up
 
@@ -2035,15 +2687,82 @@ These are all set using **Traefik labels** in the Docker service definition.
 
 ### Details
 
+#### Environment variables
+
+:page_facing_up: _.env_ :
+
+```shell
+ACKEE_USERNAME=<username>
+ACKEE_PASSWORD=<password>
+```
+
+It simply defines the credentials as environment variables to be used in the Compose file.
+
+#### Service definition
+
+:page_facing_up: _docker-compose.yml_ :
+
+```yaml
+version: "3.8"
+
+services:
+
+  ackee-app:
+    image: electerious/ackee:latest
+    container_name: ackee-app
+    depends_on:
+      - ackee-mongo
+    restart: on-failure
+    env_file: ./.env
+    environment:
+      - WAIT_HOSTS=ackee-mongo:27017
+      - ACKEE_MONGODB=mongodb://ackee-mongo:27017/ackee
+    networks:
+      - ackee-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ackee.rule=Host(`ackee.example.com`)"
+      - "traefik.http.routers.ackee.entrypoints=websecure"
+      - "traefik.http.routers.ackee.tls.certresolver=default"
+      - "traefik.http.routers.ackee.middlewares=corsheaders,vpn-whitelist"
+      - "traefik.http.services.ackee.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.corsheaders.headers.accesscontrolallowmethods=GET, POST, PATCH, OPTIONS"
+      - "traefik.http.middlewares.corsheaders.headers.accesscontrolallowheaders=Content-Type, Authorization, Time-Zone"
+      - "traefik.http.middlewares.corsheaders.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.corsheaders.headers.accesscontrolalloworiginlist=https://quake.example.com"
+      - "traefik.http.middlewares.corsheaders.headers.accesscontrolmaxage=3600"
+      - "traefik.docker.network=traefik-net"
+
+  ackee-mongo:
+    image: mongo
+    container_name: ackee-mongo
+    restart: unless-stopped
+    volumes:
+      - ./data:/data/db
+    networks:
+      - ackee-net
+
+networks:
+
+  ackee-net:
+    name: ackee-net
+
+  traefik-net:
+    name: traefik-net
+    external: true
+```
+
 Things to notice :
 
 - Uptime Kuma's data is stored in a **MongoDB** database which will run in its own container named `ackee-mongodb`. MongoDB's data is bound to a _data_ directory in the current
   directory
-- It uses Traefik **labels** on the `ackee-app` container to create :
-    - a **service** which will point to our container application running on port `3001`
-    - an HTTP **router** that will match `uptime-kuma.example.com` URL on our `websecure` **entrypoint** to point to our service
-    - a `corsheaders` middleware to set the CORS configuration required by Ackee
-    - a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+- It uses Traefik **labels** on the `ackee-app` container to :
+    - create a **service** which will point to our container application running on port `3001`
+    - create an HTTP **router** that will match `uptime-kuma.example.com` URL on our `websecure` **entrypoint** to point to our service
+    - assign the `vpn-whitelist` **middleware** so that the traffic will be restricted to allowed IPs only (application reachable only from local network or through VPN)
+    - create a `corsheaders` middleware to set the CORS configuration required by Ackee
+    - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
 - It runs in its own **network** (`uptime-kuma-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
 
 ### Run
@@ -2065,454 +2784,30 @@ The application is available at https://ackee.example.com.
 
 To track a website, simply follow the instruction by adding the required embed code in the target pages.
 
-# Install applications
+# Contributing
 
-## Defrag-life
+You are invited to contribute fixes or updates, all types of contributions are encouraged.
+I'm also open to any criticism or suggestion for improvement.
 
-## Chachatte Team API
+Please familiarize yourself with the README file before attempting a pull request.
+Also make sure to not include any sensitive information.
 
-Create a directory to hold the app :
+If you like the project, but just don't have time to contribute, that's fine :blue_heart:
 
-```bash
-mkdir /opt/apps/chachatte-team
-cd /opt/apps/chachatte-team
-```
+You can finally simply fork the project and continue on your own if you prefer.
 
-Create the _Dockerfile_ and _docker-compose.yml_ files based on the files in the _chachatte-team_ folder in this project.
+# Acknowledgments
 
-In the same directory, create a _.env_ file to hold the environment variables :
+Mainly :
+- Some cool GitHub projects related to self-hosting :
+  - https://github.com/awesome-selfhosted/awesome-selfhosted
+  - https://github.com/mikeroyal/Self-Hosting-Guide
+- Reddit
+  - Various threads, but especially in :
+    - [r/selfhosted](https://www.reddit.com/r/selfhosted/)
+    - [r/homelab](https://www.reddit.com/r/homelab/)
+    - [r/pihole](https://www.reddit.com/r/pihole/)
+    - [r/raspberry_pi](https://www.reddit.com/r/raspberry_pi/)
+- Stackoverflow
 
-```text
-MARIADB_ROOT_PASSWORD=password
-MARIADB_DATABASE=chachatte_team
-MARIADB_USER=chachatte
-MARIADB_PASSWORD=password
-SPRING_PROFILES_ACTIVE=prd
-```
-
-Move the application JAR file (_chachatte-team-graphql.jar_) into the current directory.
-
-Start :
-
-```bash
-sudo docker-compose up -d
-```
-
-This will create 2 containers :
-
-- A container holding the **MariaDB** database, exposed on port **3306**
-- A container holding the **Java** application (based on the provided _Dockerfile_), exposed on port **5001**
-
-# Network architecture
-
-## Without VPN
-
-```mermaid
-flowchart TB
-    style HOSTING_PROVIDER fill: #4d683b
-    style DDNS_PROVIDER fill: #69587b
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
-    style TRAEFIK_CONTAINER fill: #663535
-    style PIHOLE_CONTAINER fill: #663535
-    style UNBOUND_CONTAINER fill: #663535
-    style MYAPP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    DOMAIN(example.com)
-    SUBDOMAIN_MYAPP(myapp.example.com)
-    DDNS(myddns.ddns.net)
-    ROUTER[public IP]
-    ROUTER_PORT80{{80/tcp}}
-    ROUTER_PORT443{{443/tcp}}
-    DOCKER_PIHOLE_PORT53{{53/udp}}
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
-    DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_MYAPP_PORT{{port/tcp}}
-    DOCKER_UNBOUND_PORT53{{53/udp}}
-    TRAEFIK_ROUTER_MYAPP(myapp.example.com)
-    ROOT_DNS_SERVERS[Root DNS servers]
-
-    subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
-        DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
-    end
-
-    subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
-        SUBDOMAIN_MYAPP -->|CNAME| DDNS
-    end
-
-    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
-        DDNS -->|DynDNS| ROUTER
-        ROUTER --> ROUTER_PORT80
-        ROUTER --> ROUTER_PORT443
-        DNS[DNS 1]
-    end
-
-    CLIENT((client)) -->|myapp . example . com| BROWSER
-    BROWSER((browser)) <--> LOCAL_DNS_RESOLVER[/local resolver\]
-%%BROWSER((browser)) --> ROUTER
-    LOCAL_DNS_RESOLVER <-->|router local IP address| DNS
-    DNS <------>|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
-    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
-    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
-
-    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
-        subgraph CONTAINER_ENGINE[DOCKER]
-            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
-                DOCKER_MYAPP_PORT
-            end
-
-            subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
-                DOCKER_UNBOUND_PORT53
-            end
-
-            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
-                DOCKER_PIHOLE_PORT53
-            end
-
-            DOCKER_PIHOLE_PORT53 <--->|DNS1| DOCKER_UNBOUND_PORT53
-
-            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
-                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
-
-                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_MYAPP
-                end
-
-                TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT
-            end
-
-        end
-
-    end
-
-    UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
-    linkStyle 1 stroke-width: 4px, stroke: red
-    linkStyle 2 stroke-width: 4px, stroke: red
-    linkStyle 4 stroke-width: 4px, stroke: red
-    linkStyle 5 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 6 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 7 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 8 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 9 stroke-width: 4px, stroke: red
-    linkStyle 11 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 12 stroke-width: 4px, stroke: red
-    linkStyle 14 stroke-width: 4px, stroke: red
-    linkStyle 15 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-```
-
-We consider there is no record found in cache.
-
-Every request from local network will be forwarded to Pi-hole.
-
-When the client types the address into the web browser, it :
-
-1. Checks **browser cache** (most browsers cache DNS data by default), if found it uses the address corresponding to the name
-2. Checks the **OS cache** and return the address to the browser if found
-3. Checks the **local host table file** (usually _/etc/hosts_ on Linux/Mac systems and _C:
-   \Windows\System32\Drivers\etc\hosts_ on Windows) to see if an entry matches to the specified name, if so, it will directly return it to the browser
-4. Invokes the **local resolver**, passing to it the address name "myapp.example.com".
-   On Windows, it is defined at the network adapter level, usually
-   _Control Panel > Network and Internet > Network Connections_ then in the advanced properties of the desired connection (Higher Priority Connection).
-   On Linux/Mac it is usually _/etc/resovl.conf_. In my Windows system it is automatically configured to point to my router local IP Address.
-   The resolver checks its cache to see if it already has the address for this name. If it does, it returns it immediately to the Web browser
-5. Checks **router cache** and return the address to the browser if found
-6. Checks **ISP cache**
-7. Checks the **ISP resolving name server** which will cal **root DNS servers** (TLD server -> Authoritative Name Server)
-
-## With VPN
-
-1. Forward port 51820 to your Pi's local IP address
-2. Set your primary DNS in your DHCP server settings to your Pi's local IP. Leave the secondary DNS blank (remove 195.186.4.192).
-
-# Test with Wireshark
-
-<img src="images/logo-wireshark.svg" alt="Armbian logo" height="64"/>
-
-**Wireshark** is a free and open source tool for profiling **network traffic** and analyzing **packets**.
-It can be used to examine the traffic at a variety of levels ranging from connection-level information to the bits that make up a single packet.
-
-1. Install Wireshark from official website
-
-Since your pihole uses your unbound, you know it is secure and there's no need to do anything.
-
-You just have a - already secure! - setup which the tool is not able to detect properly.
-
-Addendum: Neither DoT, nor DoH are necessary and add no value if you control the LAN between you and your DNS server, which is usually the case with a pihole at home or in a VPN.
-
-144.2.115.3 is my public IP address
-192.168.0.254 is my router local IP Address
-192.168.0.11 is my desktop computer IP address
-
-todo
-
-- create only wireguard as CNAME at the Provider level, use pihole for others
-- wildcard certificates
-
-Here are 2 flow charts representing the global **network architecture** we are going to set up.
-One describes access **without VPN**, while the other shows access **through VPN**.
-It's up to you to choose the architecture you need, or to mix them, you may want some services to be accessible only from your local network, some only via VPN, and others to
-anyone.
-
-In any case we will point the **ISP DNS** (from router configuration) to the Banana Pi **IP address**, to reroute the entire Internet traffic through **Pi-hole**.
-
-The point of self-hosting our own VPN server is to ensure a private and secure connection to our services from the internet.
-That way we don't have to trust third-party VPN providers, and have complete freedom and control over the browsing data.
-Of course as it is self-hosted it will not hide our IP address, but that is not the goal.
-
-### Without VPN
-
-If you go without VPN, the **HTTPS** port must be open in your **router**, and **port forwarded**, so that the requests can reach the local network through that port.
-You may also want to open the **HTTP** port, which will be **redirected** to HTTPS
-according to our configuration.
-
-So, once the **resolving name server** got the IP address (yellow dotted line), the request reaches the Banana Pi on port 443 through **dynamic DNS** and is then port forwarded
-to the **reverse proxy** which route it to the target application (red line).
-
-```mermaid
-flowchart TB
-    style HOSTING_PROVIDER fill: #4d683b
-    style DDNS_PROVIDER fill: #69587b
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
-    style TRAEFIK_CONTAINER fill: #663535
-    style PIHOLE_CONTAINER fill: #663535
-    style UNBOUND_CONTAINER fill: #663535
-    style MYAPP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    DOMAIN(example.com)
-    SUBDOMAIN_TRAEFIK(traefik.example.com)
-    SUBDOMAIN_PIHOLE(pihole.example.com)
-    SUBDOMAIN_MYAPP(myapp.example.com)
-    DDNS(myddns.ddns.net)
-    ROUTER[public IP]
-    ROUTER_PORT80{{80/tcp}}
-    ROUTER_PORT443{{443/tcp}}
-    DOCKER_PIHOLE_PORT80{{80/tcp}}
-    DOCKER_PIHOLE_PORT53{{53/udp}}
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
-    DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
-    DOCKER_MYAPP_PORT{{port/tcp}}
-    DOCKER_UNBOUND_PORT53{{53/udp}}
-    TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
-    TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
-    TRAEFIK_ROUTER_MYAPP(myapp.example.com)
-    ROOT_DNS_SERVERS[Root DNS servers]
-
-    subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
-        DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
-        DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
-        DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
-    end
-
-    subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
-        SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
-        SUBDOMAIN_PIHOLE -->|CNAME| DDNS
-        SUBDOMAIN_MYAPP -->|CNAME| DDNS
-    end
-
-    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
-        DDNS -->|DynDNS| ROUTER
-        ROUTER --> ROUTER_PORT80
-        ROUTER --> ROUTER_PORT443
-        DNS[DNS 1]
-    end
-
-    CLIENT((browser)) <--->|myapp . example . com| LOCAL_DNS_RESOLVER[/local resolver\]
-    LOCAL_DNS_RESOLVER <-->|router local IP address| DNS
-    DNS <------>|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
-    ROUTER_PORT443 -->|port forward| DOCKER_TRAEFIK_PORT443
-    ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
-
-    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
-        subgraph CONTAINER_ENGINE[DOCKER]
-            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
-                DOCKER_MYAPP_PORT
-            end
-
-            subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
-                DOCKER_UNBOUND_PORT53
-            end
-
-            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
-                DOCKER_PIHOLE_PORT80
-                DOCKER_PIHOLE_PORT53
-            end
-
-            DOCKER_PIHOLE_PORT53 <--->|DNS1| DOCKER_UNBOUND_PORT53
-
-            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
-                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
-
-                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_TRAEFIK
-                    TRAEFIK_ROUTER_PIHOLE
-                    TRAEFIK_ROUTER_MYAPP
-                end
-
-                TRAEFIK_ROUTER_TRAEFIK -->|basic auth| DOCKER_TRAEFIK_PORT8080
-                TRAEFIK_ROUTER_PIHOLE --> DOCKER_PIHOLE_PORT80
-                TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT
-            end
-
-        end
-
-    end
-
-    UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
-    linkStyle 5 stroke-width: 4px, stroke: red
-    linkStyle 6 stroke-width: 4px, stroke: red
-    linkStyle 8 stroke-width: 4px, stroke: red
-    linkStyle 9 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 10 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 11 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 12 stroke-width: 4px, stroke: red
-    linkStyle 14 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 15 stroke-width: 4px, stroke: red
-    linkStyle 19 stroke-width: 4px, stroke: red
-    linkStyle 20 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-```
-
-### With VPN
-
-If you want to restrict internet access only through **VPN**, then do not open the HTTP and HTTPS ports on the router, only open and port forward the **VPN port** (**51820**).
-
-You will need a **VPN client**, which will resolve the **VPN server** through its **subdomain** (blue and magenta lines).
-
-Once connected, **every request** will go through VPN on port **51820**.
-.
-
-The VPN DNS is pointing to the Banana Pi IP address, so that we reroute the entire VPN traffic through **Pi-hole**.
-
-```mermaid
-flowchart TB
-    style HOSTING_PROVIDER fill: #4d683b
-    style DDNS_PROVIDER fill: #69587b
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
-    style TRAEFIK_CONTAINER fill: #663535
-    style PIHOLE_CONTAINER fill: #663535
-    style UNBOUND_CONTAINER fill: #663535
-    style MYAPP_CONTAINER fill: #663535
-    style WIREGUARD_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style WIREGUARD_CLIENT fill: #105040
-    style PIHOLE_DNS_RECORDS fill: #806030
-    DOMAIN(example.com)
-    SUBDOMAIN_WIREGUARD(wireguard.example.com)
-    SUBDOMAIN_MYAPP(myapp.example.com)
-    SUBDOMAIN_TRAEFIK(traefik.example.com)
-    SUBDOMAIN_PIHOLE(pihole.example.com)
-    DDNS(myddns.ddns.net)
-    ROUTER[public IP]
-    ROUTER_PORT51820{{51820/udp}}
-    DOCKER_WIREGUARD_PORT51820{{51820/udp}}
-    DOCKER_MYAPP_PORT5000{{5000/tcp}}
-    DOCKER_PIHOLE_PORT80{{80/tcp}}
-    DOCKER_PIHOLE_PORT53{{53/udp}}
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
-    DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
-    DOCKER_UNBOUND_PORT53{{53/udp}}
-    TRAEFIK_ROUTER_MYAPP(myapp.example.com)
-    TRAEFIK_ROUTER_PIHOLE(pihole.example.com)
-    TRAEFIK_ROUTER_TRAEFIK(traefik.example.com)
-    ROOT_DNS_SERVERS[Root DNS servers]
-
-    subgraph WIREGUARD_CLIENT[WIREGUARD CLIENT]
-        WIREGUARD_CLIENT_ENDPOINT[Endpoint]
-        WIREGUARD_CLIENT_DNS[DNS]
-    end
-
-    subgraph HOSTING_PROVIDER[DOMAIN NAME REGISTRAR]
-        DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
-        DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
-        DOMAIN -->|subdomain| SUBDOMAIN_PIHOLE
-        DOMAIN -->|subdomain| SUBDOMAIN_TRAEFIK
-    end
-
-    subgraph DDNS_PROVIDER[DYNAMIC DNS PROVIDER]
-        SUBDOMAIN_WIREGUARD -->|CNAME| DDNS
-        SUBDOMAIN_MYAPP -->|CNAME| DDNS
-        SUBDOMAIN_PIHOLE -->|CNAME| DDNS
-        SUBDOMAIN_TRAEFIK -->|CNAME| DDNS
-    end
-
-    subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
-        DDNS -->|DynDNS| ROUTER
-        ROUTER --> ROUTER_PORT51820
-        DNS[DNS 1]
-    end
-
-    CLIENT((Client)) --> WIREGUARD_CLIENT
-    WIREGUARD_CLIENT_ENDPOINT ---> SUBDOMAIN_WIREGUARD
-    WIREGUARD_CLIENT_DNS -->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
-    WIREGUARD_CLIENT --> SUBDOMAIN_MYAPP
-    DNS ---->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
-    ROUTER_PORT51820 ---->|port forward| DOCKER_WIREGUARD_PORT51820
-
-    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
-        subgraph CONTAINER_ENGINE[DOCKER]
-            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
-                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_TRAEFIK
-                    TRAEFIK_ROUTER_PIHOLE
-                    TRAEFIK_ROUTER_MYAPP
-                end
-
-                DOCKER_TRAEFIK_PORT443 ---> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 -->|redirect| DOCKER_TRAEFIK_PORT443
-                TRAEFIK_ROUTER_TRAEFIK --->|basic auth| DOCKER_TRAEFIK_PORT8080
-                TRAEFIK_ROUTER_PIHOLE ---> DOCKER_PIHOLE_PORT80
-            end
-
-            subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
-                DOCKER_PIHOLE_PORT80
-                DOCKER_PIHOLE_PORT53
-
-                subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
-                    PIHOLE_DNS_MYAPP[myapp.example.com]
-                end
-            end
-
-            subgraph WIREGUARD_CONTAINER[WIREGUARD CONTAINER]
-                DOCKER_WIREGUARD_PORT51820
-            end
-
-            subgraph MYAPP_CONTAINER[MYAPP CONTAINER]
-                DOCKER_MYAPP_PORT5000
-                TRAEFIK_ROUTER_MYAPP ---> DOCKER_MYAPP_PORT5000
-            end
-
-            subgraph UNBOUND_CONTAINER[UNBOUND CONTAINER]
-                DOCKER_UNBOUND_PORT53
-            end
-
-            PIHOLE_DNS_MYAPP ---->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
-            DOCKER_PIHOLE_PORT53 <-->|DNS1| DOCKER_UNBOUND_PORT53
-
-        end
-
-    end
-
-    UNBOUND_CONTAINER <----> ROOT_DNS_SERVERS
-    linkStyle 4 stroke-width: 4px, stroke: blue
-    linkStyle 5 stroke-width: 4px, stroke: red
-    linkStyle 8 stroke-width: 4px, stroke: magenta
-    linkStyle 9 stroke-width: 4px, stroke: magenta
-    linkStyle 10 stroke-width: 4px, stroke: red
-    linkStyle 11 stroke-width: 4px, stroke: blue
-    linkStyle 12 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 13 stroke-width: 4px, stroke: red
-    linkStyle 15 stroke-width: 4px, stroke: magenta
-    linkStyle 16 stroke-width: 4px, stroke: red
-    linkStyle 20 stroke-width: 4px, stroke: red
-    linkStyle 21 stroke-width: 4px, stroke: red
-    linkStyle 22 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-    linkStyle 23 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
-```
+Of course every upstream project (especially the ones with good documentation :grin:) also deserve credit for making all this possible :beer:
