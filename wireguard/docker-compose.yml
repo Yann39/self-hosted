@@ -22,9 +22,6 @@ services:
     hostname: "unbound"
     volumes:
       - "./unbound:/opt/unbound/etc/unbound/"
-      - "./unbound/srv-records.conf:/opt/unbound/etc/unbound/srv-records.conf"
-      - "./unbound/forward-records.conf:/opt/unbound/etc/unbound/forward-records.conf"
-      - "./unbound/a-records.conf:/opt/unbound/etc/unbound/a-records.conf"
     networks:
       wireguard_net:
         ipv4_address: 10.2.0.200

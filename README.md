@@ -31,35 +31,62 @@ It uses only **free** and **open source** software and hardware.
 
 # Table of Content
 
-1. [Overview](#overview)
+1. <details>
+   <summary><a href="#overview">Overview</a></summary>
+
     1. [Plan](#plan)
     2. [Architecture](#architecture)
-2. [Banana Pi M5 initial setup](#banana-pi-m5-initial-setup)
+
+   </details>
+2. <details>
+   <summary><a href="#banana-pi-m5-initial-setup">Banana Pi M5 initial setup</a></summary>
+
     1. [Install Android on the eMMC storage](#install-android-on-the-emmc-storage)
     2. [Format the eMMC storage](#format-the-emmc-storage)
     3. [Install Armbian on the MicroSD](#install-armbian-on-the-microsd)
     4. [Install Armbian on the eMMC storage](#install-armbian-on-the-emmc-storage)
-3. [Prepare system](#prepare-system)
+
+   </details>
+3. <details>
+   <summary><a href="#prepare-system">Prepare system</a></summary>
+
     1. [User](#user)
     2. [Cleaning](#cleaning)
     3. [Directory structure](#directory-structure)
     4. [Docker & Docker Compose](#docker--docker-compose)
-4. [Network configuration](#network-configuration)
+
+   </details>
+4. <details>
+   <summary><a href="#network-configuration">Network configuration</a></summary>
+
     1. [IP settings](#ip-settings)
     2. [Dynamic DNS](#dynamic-dns)
     3. [Domain and subdomains](#domain-and-subdomains)
     4. [Port forwarding](#port-forwarding)
     5. [Reverse proxy](#reverse-proxy)
     6. [VPN and ad-blocking](#vpn-and-ad-blocking)
-5. [Install services](#install-services)
+
+   </details>
+5. <details>
+   <summary><a href="#install-services">Install services</a></summary>
+
     1. [Portainer](#portainer)
     2. [PhpMyAdmin](#phpmyadmin)
     3. [Homer](#homer)
     4. [Dashdot](#dashdot)
     5. [Uptime Kuma](#uptime-kuma)
     6. [Ackee](#ackee)
-6. [Contributing](#contributing)
-7. [Acknowledgments](#acknowledgments)
+
+   </details>
+6. <details>
+   <summary><a href="#contributing">Contributing</a></summary>
+   </details>
+7. <details>
+   <summary><a href="#acknowledgments">Acknowledgments</a></summary>
+   </details>
+8. <details>
+   <summary><a href="#license">License</a></summary>
+   </details>
 
 # Overview
 
@@ -795,11 +822,15 @@ So, let's create **subdomains** from the domain name registrar settings, for eve
 
 - `wireguard.example.com` : To access the [Wireguard](#wireguard) server
 - `quake.example.com` : To access the [Defrag-life](#defrag-life) website
+- `lychee.example.com` : To access the [Lychee](#lychee) website
+- `chachatte.example.com` : To access the [Chachatte team](#chachatte-team-api) APIs
 
 And add corresponding **CNAME records** to point to the dynamic DNS `myddns.ddns.net` :
 
 - `CNAME	wireguard	    myddns.ddns.net`
 - `CNAME	quake	        myddns.ddns.net`
+- `CNAME	lychee	        myddns.ddns.net`
+- `CNAME	chachatte	    myddns.ddns.net`
 
 A **CNAME record** is just a records which points a name to another name instead of pointing to an IP address (like **A** records).
 
@@ -1316,17 +1347,7 @@ Then from this project's _wireguard_ directory, copy into the _/opt/apps/wiregua
 - the _.env_ file which holds some environment variables to be used in the Compose file
 - the _docker-compose.yml_ file which contains all the Docker services configuration
 
-You may have to manually create the following files before running the Compose file,
-to be able to mount them into the Unbound container :
-
-- _a-records.conf_
-- _forward-records.conf_
-- _srv-records.conf_
-
-These files are useful in case you want to override default configuration.
-You can find default ones from the Unbound **GitHub** repository.
-
-For more details about the Compose file, see [Configuration files details](#configuration-files-details-1).
+For more details about these files, see [Configuration files details](#configuration-files-details-1).
 
 Now let's take a look at the configuration for each service.
 
@@ -1564,14 +1585,42 @@ If it is working you should be able to see activity in the dashboard.
 
 <img src="images/logo-unbound.svg" alt="Unbound logo" height="128"/>
 
-There is nothing special to do about **Unbound** configuration, we can keep the default configuration.
+The first time you will run **Unbound**, it may fail because a few files included in the default configuration will be missing (at least in the image version I'm using),
+indeed the following files are included in the default _unbound.conf_ file (which should have been created correctly in _/etc/unbound/unbound.conf_) :
 
-Maybe if you want to activate logging, edit the _/etc/unbound/unbound.conf_ configuration file :
+- _/opt/unbound/etc/unbound/a-records.conf_
+- _/opt/unbound/etc/unbound/srv-records.conf_
+- _/opt/unbound/etc/unbound/forward-records.conf_
+
+You could manually create these files (you can find default ones from the Unbound **GitHub** repository),
+and then mount them into the Unbound container, before running again the Compose file.
+
+But that way it would run Unbound in **forwarder** mode, meaning that the DNS server will forward all the queries to **Cloudflare**.
+This was my first try and a **DNS leak test** confirmed that it uses Cloudflare, indeed the default _forward-records.conf_ file includes the following forwarding rules :
+
+```
+forward-addr: 1.1.1.1@853#cloudflare-dns.com
+forward-addr: 1.0.0.1@853#cloudflare-dns.com
+```
+
+So, if you want to run Unbound **without forwarding**, just remove the line that includes the _forward-records.conf_ file in the _unbound.conf_ file.
+Or don't create any of the 3 above files at all (and do not bind them in the container), and remove the includes from the _unbound.conf_ file.
+
+A DNS leak test should now show your IP address as DNS server.
+
+> [!IMPORTANT]
+> If you use the default _forward-records.conf_ file, Unbound will run in **forwarder** mode, meaning that it will forward all queries to **Cloudflare**.
+> To remove the default forwarding to Cloudflare and make your unbound container a recursive-only server,
+> edit the _unbound.conf_ file and remove include of the _forward-records.conf_ file.
+
+Finally, if you want to activate **logging** for debugging purposes, edit the _/etc/unbound/unbound.conf_ configuration file :
 
 ```
 verbosity: 1
 log-queries: yes
 ```
+
+But it's not recommended to increase verbosity for daily use, as Unbound logs a lot.
 
 ### Configuration files details
 
@@ -1616,9 +1665,6 @@ services:
     hostname: "unbound"
     volumes:
       - "./unbound:/opt/unbound/etc/unbound/"
-      - "./unbound/srv-records.conf:/opt/unbound/etc/unbound/srv-records.conf"
-      - "./unbound/forward-records.conf:/opt/unbound/etc/unbound/forward-records.conf"
-      - "./unbound/a-records.conf:/opt/unbound/etc/unbound/a-records.conf"
     networks:
       wireguard_net:
         ipv4_address: 10.2.0.200
@@ -2809,5 +2855,25 @@ Mainly :
     - [r/pihole](https://www.reddit.com/r/pihole/)
     - [r/raspberry_pi](https://www.reddit.com/r/raspberry_pi/)
 - Stackoverflow
+- Lots of Google researches
 
 Of course every upstream project (especially the ones with good documentation :grin:) also deserve credit for making all this possible :beer:
+
+# Licence
+
+Please refer to the license of each product mentioned in this guide.
+
+Otherwise, the GPL V3 license applies.
+
+[General Public License (GPL) v3](https://www.gnu.org/licenses/gpl-3.0.en.html)
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU
+General Public License as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program.  If not,
+see <http://www.gnu.org/licenses/>.
