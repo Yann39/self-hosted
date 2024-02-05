@@ -13,7 +13,7 @@ services:
       - traefik-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.uptime-kuma.rule=Host(`uptime-kuma.example.com`)"
+      - "traefik.http.routers.uptime-kuma.rule=Host(`kuma.example.com`)"
       - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
       - "traefik.http.routers.uptime-kuma.tls.certresolver=default"
       - "traefik.http.routers.uptime-kuma.middlewares=vpn-whitelist"
