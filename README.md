@@ -54,9 +54,10 @@ It uses only **free** and **open source** software and hardware.
    <summary><a href="#prepare-system">Prepare system</a></summary>
 
     1. [User](#user)
-    2. [Cleaning](#cleaning)
-    3. [Directory structure](#directory-structure)
-    4. [Docker & Docker Compose](#docker--docker-compose)
+    2. [SSH access](#ssh-access)
+    3. [Cleaning](#cleaning)
+    4. [Directory structure](#directory-structure)
+    5. [Docker & Docker Compose](#docker--docker-compose)
 
    </details>
 4. <details>
@@ -80,6 +81,9 @@ It uses only **free** and **open source** software and hardware.
     4. [Dashdot](#dashdot)
     5. [Uptime Kuma](#uptime-kuma)
     6. [Ackee](#ackee)
+    7. [Lychee](#lychee)
+    8. [Defrag-life](#defrag-life)
+    9. [Chachatte-team](#chachatte-team)
 
    </details>
 6. <details>
@@ -162,7 +166,7 @@ It should also work on many other **ARM** boards such as the **Raspberry Pi**.
 
 Here is a chart representing the global network "architecture" we are going to set up, simplified with only the most relevant services.
 
-This architecture allows exposing applications to the internet while restricting access to some only through a **VPN** or from the local network.
+This architecture allows exposing applications to the internet while restricting access to some of them only through **VPN** or from the local network.
 It's up to you to choose the accessibility level you need for each service, you may want some to be accessible only from your local network,
 some only via VPN, and others to anyone from the internet.
 
@@ -294,7 +298,6 @@ flowchart TB
     BASIC_AUTH --> DOCKER_TRAEFIK_PORT8080
     DOCKER_PIHOLE_DNS ---> DOCKER_UNBOUND_PORT53
     UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
-    DOCKER_PIHOLE_PORT53 -.....- DOCKER_PIHOLE_DNS
 ```
 
 Basically all services will be accessible via dedicated subdomains which will point to our local network, either through **dynamic DNS** or through **local DNS records**,
@@ -411,7 +414,7 @@ From your machine (**Windows 11** in my case) :
 We will install Armbian in the eMMC storage, this setup will offer the best performances.
 
 - Plug in the USB-C power cable of the Banana Pi M5 to boot on Armbian in the MicroSD card
-- Put the Armbian image in the Banana Pi MicroSD card storage (through USB key or network or whatever), for example in _/home/yann/Documents_
+- Put the Armbian image in the Banana Pi MicroSD card storage (through USB key or network or whatever), for example in _/home/me/Documents_
 - Run `fdisk -l` command to identify the **eMMC** path, should be something like _/dev/mmcblk1_
 - Burn the image to the eMMC storage by running the command :
   ```shell
@@ -424,7 +427,7 @@ We will install Armbian in the eMMC storage, this setup will offer the best perf
 ## User
 
 When installing **Armbian**, you should have been asked to create a **regular user account** that is **sudo** enabled.
-We will just use that user for the whole guide.
+We will simply use that user for the whole guide.
 
 For security reasons, do not use the `root` user directly.
 If you run a program as root and a security flaw is exploited, the attacker has access to the whole system without restriction.
@@ -434,6 +437,30 @@ It is also safer in case you unintentionally issue a command that could hurt the
 > [!NOTE]
 > We may also create specific users inside **Docker containers** for some applications, specially when creating our own **Dockerfile**,
 > but we'll clarify then whether additional permissions need to be added in case they need access to the local filesystem through a **bind mount**.
+
+## SSH access
+
+Generally, you'll want to leave your board in a cool, quiet corner,
+rather than letting it land around in your feet and having to connect a keyboard/mouse/screen every time you want to access it.
+
+A solution is simply to access it as a remote computer via **SSH**, from your main computer.
+
+In the normal **Armbian** images, SSH is enabled by default, so there is no additional configuration to do.
+
+Simply use the `ssh` command to establish a secure and authenticated SSH connection to the board :
+
+```shell
+ssh me@bananapim5
+```
+
+Enter your password then you are ready to go !
+
+<img src="images/screen-ssh-bpi.png" alt="Bananapi header after SSH connection"/>
+
+You can also use your preferred **SSH client**.
+
+Unless you want to be able to do some operations from outside your local network, there is no need to open the SSH port to the internet.
+If you do so consider using it behind a VPN (even if SSH itself is very secure).
 
 ## Cleaning
 
@@ -870,7 +897,7 @@ and `443` :
 
 We will configure **Traefik** later to **redirect** HTTP requests to HTTPS.
 But if you prefer you can only open the HTTPS port (if you are going to use Let's encrypt' **HTTP challenge**,
-it's enough for the TLS certificates to be generated, see the warning box a little further below).
+it's enough for the TLS certificates to be generated, see the warning box a little further below though).
 
 ### Allow access through VPN
 
@@ -904,7 +931,7 @@ We will use it to intercept and route every incoming request to the correspondin
 It will listen to our services and instantly generates the **routes**, so that they are connected to the outside world.
 We will also use it to automatically generate and renew **SSL/TLS certificates** through **Let's Encrypt**.
 
-Here is an overview of the network flow :
+Here is an overview of the network flow on our setup :
 
 ```mermaid
 flowchart LR
@@ -916,7 +943,7 @@ flowchart LR
     style TRAEFIK_MIDDLEWARE fill: #806030
     style SINGLE_BOARD_COMPUTER fill: #665555
     style CONTAINER_ENGINE fill: #664545
-    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST((INCOMING\nREQUEST))
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
@@ -1028,9 +1055,9 @@ preventing hackers from intercepting any data transmitted between a device and t
 
 We will use **Let's Encrypt**, a nonprofit certificate authority which provide free TLS certificates.
 
-**Let's Encrypt** can automatically generate certificates via Traefik, for that we need to create a `acme.json` file that will hold the generated certificates (file is mapped to a
-volume in the
-**Compose** file), so that the certificates are persisted between container restarts (not generated each time which could raise Let's Encrypt rate limits), we also need to change
+**Let's Encrypt** can automatically generate certificates via Traefik, for that we need to create a `acme.json` file that will hold the generated certificates
+(file is mapped to a volume in the**Compose** file),
+so that the certificates are persisted between container restarts (not generated each time which could raise Let's Encrypt rate limits), we also need to change
 the permissions so that Traefik can access and edit this file :
 
 ```bash
@@ -1050,7 +1077,7 @@ The corresponding certificate resolver configuration would be :
 tlsChallenge: { }
 ```
 
-> [!NOTE]
+> [!WARNING]
 > Note that Let’s Encrypt will not let you use this challenge to issue wildcard certificates.
 
 #### DNS challenge
@@ -1212,7 +1239,7 @@ networks:
     name: traefik-net
 ```
 
-This Compose file :
+This **Compose** file mainly :
 
 - exposes ports `80` and `443` to receive incoming HTTP/HTTPS requests
 - defines a `traefik-net` **network** (which will have to be shared with the services that will use Traefik)
@@ -1271,7 +1298,8 @@ It has the ability to block traditional website advertisements as well as advert
 It can also be used as a **DNS** server and has a built-in **DHCP** server.
 
 **Unbound** is a validating, recursive, caching **DNS resolver**, that has the ability to contact **DNS authority** servers directly
-in order to validate and cache the queries on your network and serve them to you directly, so you don’t have to rely on your ISP or third-party DNS resolvers.
+in order to validate and cache the queries on your network and serve them to you directly,
+so you don’t have to rely on your ISP or third-party DNS resolvers (like Cloudflare or Google).
 
 We will also install **WireGuard-UI** which provide a GUI for easier WireGuard configuration and monitoring.
 
@@ -1761,10 +1789,10 @@ services:
       traefik-net:
 ```
 
-This Compose file roughly :
+This **Compose** file roughly :
 
-- Defines a `wireguard_net` **network** to hold our 4 WireGuard-related services, with the assigned subnet address `10.2.0.0/24` (**CIDR** notation)
-- Reference the `traefik-net` Traefik network so that services can use it and be discoverable by Traefik
+- defines a `wireguard_net` **network** to hold our 4 WireGuard-related services, with the assigned subnet address `10.2.0.0/24` (**CIDR** notation)
+- reference the `traefik-net` Traefik network so that services can use it and be discoverable by Traefik
 - defines our 4 services (WireGuard, WireGuard UI, Pi-Hole, Unbound) :
     - `unbound` service :
         - defines **volumes** to bind configuration files, in case you want to override default configuration
@@ -1843,9 +1871,9 @@ When a user enters the URL in the browser, the browser need to know the IP addre
 7. Checks the **ISP resolving name server** which will call the **root DNS servers** (root server <--> TLD server <--> Authoritative Name Server)
    to find the IP address from the DNS server responsible for the domain name
 
-In our case every request from the **local network** is forwarded to **Pi-hole**, so the IP resolving will go through **Pi-Hole** and **Unbound**.
+In our case every request from the **local network** is forwarded to **Pi-hole**, so the IP resolving will always go through **Pi-Hole** and **Unbound**.
 
-You can first test that each service is resolvable using nslookup command, i.e. :
+You can first test that each service is resolvable using `nslookup` command, i.e. :
 
 ```cmd
 C:\Users\Yann39>nslookup myapp.example.com
@@ -1912,9 +1940,10 @@ For the following examples, we will consider that the **user** enters http://mya
 Here is what happen when you try to reach a service which is **open to the internet**, without using any VPN,
 from your local network holding your homelab (on the left), or from any other location (on the right) :
 
-<table style="width:100%">
+<table>
 <tr>
 <td>
+<img width="450px" height="1px">
 
 ```mermaid
 flowchart TB
@@ -2032,6 +2061,7 @@ flowchart TB
 
 </td>
 <td>
+<img width="450px" height="1px">
 
 ```mermaid
 flowchart TB
@@ -2335,7 +2365,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(portainer.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
-    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST((INCOMING\nREQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -2475,7 +2505,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(phpmyadmin.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
-    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST((INCOMING\nREQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -2614,7 +2644,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(dashboard.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
-    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST((INCOMING\nREQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -2879,7 +2909,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(dashdot.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
-    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST((INCOMING\nREQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -3009,7 +3039,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(kuma.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
-    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST((INCOMING\nREQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -3146,7 +3176,7 @@ flowchart LR
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
     TRAEFIK_MIDDLEWARE_CORS(CORS)
-    INCOMING_REQUEST(("&nbsp;&nbsp;INCOMING&nbsp;&nbsp;\nREQUEST"))
+    INCOMING_REQUEST((INCOMING\nREQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -3314,7 +3344,15 @@ The application is available at https://ackee.example.com.
 
 To track a website, simply follow the instruction by adding the required embed code in the target pages.
 
-## Chachatte Team API
+## Lychee
+
+todo
+
+## Defrag-life
+
+todo
+
+## Chachatte Team
 
 Create a directory to hold the app :
 
@@ -3348,9 +3386,34 @@ This will create 2 containers :
 - A container holding the **MariaDB** database, exposed on port **3306**
 - A container holding the **Java** application (based on the provided _Dockerfile_), exposed on port **5001**
 
+Then the API is available at : https://chachatte.example.com/context/graphql
+
+You will get an access denied as you need a valid **JWT token**, but it confirms that the service is running correctly :
+
+```json
+{
+  "errors": [
+    {
+      "cause": null,
+      "stackTrace": null,
+      "extensions": {
+        "errorCode": "no_token"
+      },
+      "errorType": "DataFetchingException",
+      "locations": null,
+      "message": "Full authentication is required to access this resource",
+      "path": null,
+      "suppressed": [],
+      "localizedMessage": "Full authentication is required to access this resource"
+    }
+  ],
+  "data": null
+}
+```
+
 # Contributing
 
-You are invited to contribute fixes or updates, all types of contributions are encouraged.
+You are invited to contribute fixes or updates.
 I'm also open to any criticism or suggestion for improvement.
 
 Please familiarize yourself with the README file before attempting a pull request.
@@ -3372,7 +3435,7 @@ Mainly :
         - [r/pihole](https://www.reddit.com/r/pihole/)
         - [r/raspberry_pi](https://www.reddit.com/r/raspberry_pi/)
 - Stackoverflow
-- Lots of Google researches
+- Lots of Google searches
 
 Of course every upstream project (especially the ones with good documentation :grin:) also deserve credit :beer:
 
