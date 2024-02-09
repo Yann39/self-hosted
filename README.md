@@ -1043,7 +1043,7 @@ Then copy the output to the _credentials.txt_ file.
 
 > [!NOTE]
 > Actually as Traefik will be accessible only from local network and through VPN, we don't really need to set up basic authentication,
-> but it's more for demonstration, and it's always better to have 2 layers of security than one :)
+> but it's more for demonstration, and it's always better to have 2 layers of security than one.
 
 ### TLS certificates
 
@@ -1225,13 +1225,13 @@ services:
       - "traefik.http.routers.api.tls=true"
       - "traefik.http.routers.api.tls.certresolver=default"
 
+      # IP whitelist for services to be accessible only through VPN and from the local network, have to be applied on each service configuration that need it
+      - "traefik.http.middlewares.vpn-whitelist.ipwhitelist.sourcerange=192.168.0.0/24, 172.18.0.0/16"
+
       # Secure dashboard/API with authentication
       - "traefik.http.routers.dashboard.middlewares=auth"
       - "traefik.http.routers.api.middlewares=auth"
       - "traefik.http.middlewares.auth.basicauth.usersfile=/credentials.txt"
-
-      # IP whitelist for services to be accessible only through VPN and from the local network, have to be applied on each service configuration that need it
-      - "traefik.http.middlewares.vpn-whitelist.ipwhitelist.sourcerange=192.168.0.0/24, 172.18.0.0/16"
 
 networks:
 
@@ -1250,6 +1250,9 @@ This **Compose** file mainly :
 - secures dashboard and API endpoints by defining a `auth` middleware that will handle basic authentication (from _credentials.txt_ file)
 - defines a `vpn-whitelist` **middleware** responsible for whitelisting IPs, so that it can be used by services that will be exposed to the internet to allow only local traffic and
   VPN traffic
+
+> [!CAUTION]
+> The order in which the middlewares are defined in relation to a router is important, they will be applied in the same order as their declaration.
 
 ### Run
 
@@ -1575,9 +1578,11 @@ Do this for each client on every device you need.
 The Compose file will run a **Pi-Hole** instance which need to be configured.
 
 First, we need to change **interface settings** to allow the traffic from other interfaces (especially for our VPN).
-By default, it allows only queries from local devices.
+By default, it allows only queries from local devices (from the same network as the Pi-Hole's network).
 
-So, reach Pi-Hole at https://pihole.example.com and go to _Settings -> Interface settings_ and choose _"Permit all origins"_ so that the traffic from WireGuard can be seen.
+So, reach Pi-Hole at https://pihole.example.com and go to _Settings -> Interface settings_ and choose _"Permit all origins"_ instead of default _"Allow only local requests"_,
+so that the traffic from outside the Docker bridge network can be seen (indeed, "local" for Pi-Hole is the Docker bridge network,
+and thus it would allow only queries from inside that network).
 
 Then we need to add **local DNS records** so that the domain names can be resolved from VPN or local network (remember we have routed all the traffic through Pi-Hole).
 We simply need to associate domain names with the internal IP address of the Banana Pi, so they can be handled by the reverse proxy.
@@ -1795,7 +1800,7 @@ This **Compose** file roughly :
 - reference the `traefik-net` Traefik network so that services can use it and be discoverable by Traefik
 - defines our 4 services (WireGuard, WireGuard UI, Pi-Hole, Unbound) :
     - `unbound` service :
-        - defines **volumes** to bind configuration files, in case you want to override default configuration
+        - defines a **volume** that binds the configuration folder to a local folder, in case we want to change default configuration
         - assigns the **static IP address** `10.2.0.200` for the container inside the WireGuard network
     - `wireguard` service :
         - defines a **volume** to bind configuration file
@@ -3425,17 +3430,18 @@ You can also simply fork the project and continue on your own.
 
 Mainly :
 
-- Some cool GitHub projects related to self-hosting :
+- Some cool **GitHub** projects related to self-hosting :
     - https://github.com/awesome-selfhosted/awesome-selfhosted
+    - https://github.com/awesome-foss/awesome-sysadmin
     - https://github.com/mikeroyal/Self-Hosting-Guide
-- Reddit
-    - Various threads, but especially in :
-        - [r/selfhosted](https://www.reddit.com/r/selfhosted/)
-        - [r/homelab](https://www.reddit.com/r/homelab/)
-        - [r/pihole](https://www.reddit.com/r/pihole/)
-        - [r/raspberry_pi](https://www.reddit.com/r/raspberry_pi/)
-- Stackoverflow
-- Lots of Google searches
+- Various threads on **Reddit**, but especially in :
+    - [r/selfhosted](https://www.reddit.com/r/selfhosted/)
+    - [r/homelab](https://www.reddit.com/r/homelab/)
+    - [r/pihole](https://www.reddit.com/r/pihole/)
+    - [r/raspberry_pi](https://www.reddit.com/r/raspberry_pi/)
+- **StackExchange** network (particularly **Stack Overflow**, **Superuser**, and **Server Fault**):
+    - [Q&A communities](https://stackexchange.com/sites)
+- Lots of **Google** searches
 
 Of course every upstream project (especially the ones with good documentation :grin:) also deserve credit :beer:
 
