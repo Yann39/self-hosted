@@ -2,7 +2,7 @@
 
 # Personal self-hosting guide
 
-![Static Badge](https://img.shields.io/badge/Version-1.0.7-2AAB92)
+![Static Badge](https://img.shields.io/badge/Version-1.0.8-2AAB92)
 ![Static Badge](https://img.shields.io/badge/Last%20update-06%20Feb%202024-blue)
 ![Static Badge](https://img.shields.io/badge/Free%20&%20Open%20source-GPL%20V3-green)
 
@@ -70,6 +70,7 @@ It uses only **free** and **open source** software and hardware.
     5. [Reverse proxy](#reverse-proxy)
     6. [VPN and ad-blocking](#vpn-and-ad-blocking)
     7. [Test the network](#test-the-network)
+    8. [Network flow](#network-flow)
 
    </details>
 5. <details>
@@ -1404,9 +1405,14 @@ Then you can do the configuration using WireGuard UI (accessible at https://wire
 
 In **Global Settings** menu :
 
-- set **Endpoint Address** to `wireguard.example.com`, this is the public IP address of your WireGuard server that every client will connect to
+- set **Endpoint Address** to `wireguard.example.com`, this is the public IP address / hostname of the WireGuard server that every client will connect to
 - set **DNS Servers** to `10.2.0.100` (Pi hole address defined in Docker Compose) instead of `1.1.1.1` (Cloudflare) so that all clients traffic goes through Pi-Hole (and then
   Unbound)
+- adapt the **MTU** (Maximum Transmission Unit) to the right value depending on your network (you will also have to tweak it on each pear configuration).
+  I had to set it to `1420`, see [VPN connection speed](#vpn-connection-speed) for more detail about finding best MTU value
+
+> [!DANGER]
+> Setting a non-optimal value for MTU can lead to slow connection.
 
 In **WireGuard Server** menu :
 
@@ -1936,11 +1942,156 @@ which shows that the `vpn-whitelist` **middleware** blocks any IP address that i
 > level=debug msg="Rejecting IP 81.165.84.189: \"81.165.84.189\" matched none of the trusted IPs" middlewareName=vpn-whitelist@docker middlewareType=IPWhiteLister
 > ```
 
-### Network flow
+### VPN connection speed
+
+To verify that the VPN is not killing the connection speed,
+you can first use an online **speed test**, this will confirm whether the connection speed is close to normal.
+
+In my case I observed an abnormally slow connection (**~22 MB/s** download and upload speed, even though I have a gigabit connection whose speed reaches **700+ MB/s** without VPN).
+
+![Ookla test with MTU 1450](images/screen-ookla-test-mtu-1450.png)
+
+That was because of the WireGuard **MTU** (**Maximum Transmission Unit**) value,
+which need to be slightly adjusted.
+
+#### Configure MTU
+
+By default, WireGuard sets an MTU value of `1450`, which may not be optimal for your connection.
+
+Most of **Ethernet** connections have an MTU of `1500`.
+You can confirm this on your network by running the `ping` command with right parameters :
+
+```console
+ping www.google.com -f -l 1472
+ping www.google.com -f -l 1473
+```
+
+If the MTU is too high, it will tell you that the packet needs to be fragmented.
+Indeed, packets larger than the connection’s MTU size cannot be transmitted and will be fragmented into smaller packets.
+
+`1472` will work and `1473` will warn about fragmented packets,
+this is because the **IPv4 header** is `20` bytes and the **ICMP header** is `8` bytes (so `1472 + 20 + 8 = 1500`).
+
+But when going through WireGuard, it also sets `32` additional bytes, which will result in a `60` bytes header, exceeding the value of `1500` (`1510`).
+
+So, the worst case (IPv6, which has a 40 bytes header) ends up being `1500-(40+8+4+4+8+16)` = `1420`.
+However, if you know that you're going to be using IPv4 exclusively, then you could get away with `1440`.
+
+So just set that value as the MTU for the WireGuard server and peer.
+
+#### Measure speed with iPerf
+
+Then you can test the connection speed between the WireGuard server and the peer, using the **iPerf** utility.
+
+1. Enter the WireGuard container :
+
+   ```bash
+   docker exec -it wireguard bash
+   ```
+
+2. Install iPerf (use `apk` as this is an Alpine Linux) :
+
+   ```bash 
+   apk add iperf
+   ```
+
+3. Install iPerf on the client machine (**Windows** in my case, so I just downloaded and extracted the _.exe_ file).
+
+4. Run iPerf in **server mode** on the WireGuard server :
+
+   ```bash 
+   iperf --server
+   ```
+
+5. Run iPerf in **client mode** on the client machine to execute the test :
+
+   ```bash 
+   iperf --client 10.2.0.3 --time 5 --reverse
+   ```
+   `10.2.0.3` is our WireGuard server static IP address
+   `--time 5` runs the test for 5 seconds
+   `--reverse` runs a download test (omit it to test upload)
+
+> [!WARNING]
+> iperf 2 and iperf 3 are not compatible, so make sure to install the same major version on both side,
+> else you may get `iperf3: error - unable to connect to server: Connection refused`
+
+So here it the output with the default `1450` MTU :
+
+```console
+------------------------------------------------------------
+Client connecting to 10.2.0.3, TCP port 5001
+TCP window size:  208 KByte (default)
+------------------------------------------------------------
+[  3] local 10.10.1.2 port 52846 connected with 10.2.0.3 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  3]  0.0- 5.3 sec  14.9 MBytes  23.7 Mbits/sec
+```
+
+With `1420` MTU :
+
+```console
+------------------------------------------------------------
+Client connecting to 10.2.0.3, TCP port 5001
+TCP window size:  208 KByte (default)
+------------------------------------------------------------
+[  3] local 10.10.1.2 port 51999 connected with 10.2.0.3 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  3]  0.0- 5.0 sec   225 MBytes   378 Mbits/sec
+```
+
+And even better with `1400` MTU :
+
+```console
+------------------------------------------------------------
+Client connecting to 10.2.0.3, TCP port 5001
+TCP window size:  208 KByte (default)
+------------------------------------------------------------
+[  3] local 10.10.1.2 port 53401 connected with 10.2.0.3 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  3]  0.0- 5.0 sec   247 MBytes   414 Mbits/sec
+```
+
+Other values give roughly the same results.
+
+You can also run multiple tests in parallel, with the `-P` argument :
+
+```bash
+iperf --client 10.2.0.3 --time 5 --reverse -P 3
+```
+
+```console
+------------------------------------------------------------
+Client connecting to 10.2.0.3, TCP port 5001
+TCP window size:  208 KByte (default)
+------------------------------------------------------------
+[  3] local 10.10.1.2 port 60001 connected with 10.2.0.3 port 5001
+[  5] local 10.10.1.2 port 60003 connected with 10.2.0.3 port 5001
+[  4] local 10.10.1.2 port 60002 connected with 10.2.0.3 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  3]  0.0- 5.0 sec  89.8 MBytes   150 Mbits/sec
+[  4]  0.0- 5.0 sec  90.1 MBytes   151 Mbits/sec
+[  5]  0.0- 5.0 sec  78.2 MBytes   131 Mbits/sec
+[SUM]  0.0- 5.0 sec   258 MBytes   432 Mbits/sec
+```
+
+And that way we can see that the **CPU load** on the Banana Pi reaches 100% and can limit the bandwidth :
+
+![CPU load during iPerf test](images/screen-cpu-load-iperf.png "CPU load during iPerf test")
+
+Anyway, we improved a lot ! A new online test confirms it :
+
+![Ookla test with MTU 1450](images/screen-ookla-test-mtu-1400.png "Ookla test with MTU 1450")
+
+> [!NOTE]
+> You can try other value to see what fits best in your network.
+> There are other parameters than can influence the connection speed (CPU load, distance, etc.), but I stopped investigation here as it's performing well enough for my use.
+
+## Network flow
 
 For the following examples, we will consider that the **user** enters http://myapp.example.com in the **browser** for the first time (no **DNS record** found in cache).
 
-#### Without VPN
+### Without VPN
 
 Here is what happen when you try to reach a service which is **open to the internet**, without using any VPN,
 from your local network holding your homelab (on the left), or from any other location (on the right) :
@@ -2187,7 +2338,7 @@ the request reaches the Banana Pi on port **80** (HTTP) after being **port forwa
 to be handled by the **reverse proxy**, and is then redirected to port **443** (HTTPS) thanks to the **HTTPS redirect middleware**,
 which finally route it to the target application (red line)
 
-#### With VPN
+### With VPN
 
 If you try to reach the service through the **WireGuard** VPN, the flow will look like the following :
 
@@ -2822,7 +2973,7 @@ services:
         subtitle: "Application monitoring tool"
         tag: "monitoring"
         url: "https://kuma.example.com/status/dashboard"
-      - name: "Wireguard UI"
+      - name: "WireGuard UI"
         logo: "https://seeklogo.com/images/W/wireguard-logo-259B3D155A-seeklogo.com.png"
         subtitle: "Simple yet fast and modern VPN"
         tag: "network"
@@ -3441,6 +3592,8 @@ Mainly :
     - [r/raspberry_pi](https://www.reddit.com/r/raspberry_pi/)
 - **StackExchange** network (particularly **Stack Overflow**, **Superuser**, and **Server Fault**):
     - [Q&A communities](https://stackexchange.com/sites)
+- Blog post about WireGuard performance tuning :
+    - https://www.procustodibus.com/blog/2022/12/wireguard-performance-tuning/
 - Lots of **Google** searches
 
 Of course every upstream project (especially the ones with good documentation :grin:) also deserve credit :beer:
