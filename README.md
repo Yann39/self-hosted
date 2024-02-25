@@ -2,8 +2,8 @@
 
 # Personal self-hosting guide
 
-![Static Badge](https://img.shields.io/badge/Version-1.0.8-2AAB92)
-![Static Badge](https://img.shields.io/badge/Last%20update-06%20Feb%202024-blue)
+![Static Badge](https://img.shields.io/badge/Version-1.0.9-2AAB92)
+![Static Badge](https://img.shields.io/badge/Last%20update-24%20Feb%202024-blue)
 ![Static Badge](https://img.shields.io/badge/Free%20&%20Open%20source-GPL%20V3-green)
 
 This project describes my personal **self-hosted** infrastructure setup, running on a **Banana Pi M5** board.
@@ -166,6 +166,7 @@ It should also work on many other **ARM** boards such as the **Raspberry Pi**.
 ## Architecture
 
 Here is a chart representing the global network "architecture" we are going to set up, simplified with only the most relevant services.
+See [Network flow](#network-flow) for more detailed schemas.
 
 This architecture allows exposing applications to the internet while restricting access to some of them only through **VPN** or from the local network.
 It's up to you to choose the accessibility level you need for each service, you may want some to be accessible only from your local network,
@@ -595,6 +596,10 @@ sudo sh get-docker.sh
 sudo rm get-docker.sh
 sudo docker version
 ```
+
+> [!NOTE]
+> You can use https://get.docker.com/rootless to install it in rootless mode (run the Docker daemon as a non-root user)
+> to mitigate potential vulnerabilities in the daemon and the container runtime.
 
 Then also install **Docker-Compose**, so we can define and run multi-container Docker applications :
 
@@ -1411,7 +1416,7 @@ In **Global Settings** menu :
 - adapt the **MTU** (Maximum Transmission Unit) to the right value depending on your network (you will also have to tweak it on each pear configuration).
   I had to set it to `1420`, see [VPN connection speed](#vpn-connection-speed) for more detail about finding best MTU value
 
-> [!DANGER]
+> [!CAUTION]
 > Setting a non-optimal value for MTU can lead to slow connection.
 
 In **WireGuard Server** menu :
@@ -1913,7 +1918,7 @@ from different device and connection type.
 
 For example if we try to access a service that must be accessible only through VPN (and local network), here are the results :
 
-| Device | Connection | VPN               | Public IP     | Remote address (request header) | Traefik       | Response                  |
+| Device | Connection | VPN status        | Public IP     | Remote address (request header) | Traefik       | Response                  |
 |--------|------------|-------------------|---------------|---------------------------------|---------------|---------------------------|
 | PC     | cable      | :red_circle: off  | 144.12.117.3  | 192.168.0.17                    | 192.168.0.11  | :heavy_check_mark: 200 OK |
 | PC     | cable      | :green_circle: on | 144.12.117.3  | 192.168.0.17                    | 192.168.0.11  | :heavy_check_mark: 200 OK |
@@ -1959,23 +1964,23 @@ which need to be slightly adjusted.
 By default, WireGuard sets an MTU value of `1450`, which may not be optimal for your connection.
 
 Most of **Ethernet** connections have an MTU of `1500`.
-You can confirm this on your network by running the `ping` command with right parameters :
+You can confirm this on your network by running the `ping` command with the right parameters :
 
 ```console
 ping www.google.com -f -l 1472
 ping www.google.com -f -l 1473
 ```
 
-If the MTU is too high, it will tell you that the packet needs to be fragmented.
-Indeed, packets larger than the connection’s MTU size cannot be transmitted and will be fragmented into smaller packets.
+If the MTU is too high, it will tell you that the packet needs to be fragmented (packets larger than
+the connection’s MTU size cannot be transmitted and will be fragmented into smaller packets), else ping will answer normally.
 
 `1472` will work and `1473` will warn about fragmented packets,
 this is because the **IPv4 header** is `20` bytes and the **ICMP header** is `8` bytes (so `1472 + 20 + 8 = 1500`).
 
-But when going through WireGuard, it also sets `32` additional bytes, which will result in a `60` bytes header, exceeding the value of `1500` (`1510`).
+But when going through WireGuard, it also sets additional bytes, which will result in a `60` bytes header, exceeding the value of `1500` (`1450 + 60 = 1510`).
 
-So, the worst case (IPv6, which has a 40 bytes header) ends up being `1500-(40+8+4+4+8+16)` = `1420`.
-However, if you know that you're going to be using IPv4 exclusively, then you could get away with `1440`.
+The worst case (**IPv6**, which has a `40` bytes header compared to `20` bytes of IPv4) ends up being for WireGuard `1500 - 80` = `1420`.
+However, if you know that you're going to be using IPv4 exclusively, then you could go with `1440`.
 
 So just set that value as the MTU for the WireGuard server and peer.
 
@@ -2008,9 +2013,9 @@ Then you can test the connection speed between the WireGuard server and the peer
    ```bash 
    iperf --client 10.2.0.3 --time 5 --reverse
    ```
-   `10.2.0.3` is our WireGuard server static IP address
-   `--time 5` runs the test for 5 seconds
-   `--reverse` runs a download test (omit it to test upload)
+    - `10.2.0.3` is our WireGuard server static IP address
+    - `--time 5` runs the test for 5 seconds
+    - `--reverse` runs a download test (omit it to test upload)
 
 > [!WARNING]
 > iperf 2 and iperf 3 are not compatible, so make sure to install the same major version on both side,
