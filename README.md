@@ -2,9 +2,9 @@
 
 # Personal self-hosting guide
 
-![Static Badge](https://img.shields.io/badge/Version-1.0.9-2AAB92)
-![Static Badge](https://img.shields.io/badge/Last%20update-24%20Feb%202024-blue)
-![Static Badge](https://img.shields.io/badge/Free%20&%20Open%20source-GPL%20V3-green)
+![Static Badge](https://img.shields.io/badge/Version-1.1.7-2AAB92)
+![Static Badge](https://img.shields.io/badge/Last_update-24_Feb_2024-blue)
+![Static Badge](https://img.shields.io/badge/Free_&_Open_source-GPL_V3-green)
 
 This project describes my personal **self-hosted** infrastructure setup, running on a **Banana Pi M5** board.
 
@@ -84,7 +84,7 @@ It uses only **free** and **open source** software and hardware.
     6. [Ackee](#ackee)
     7. [Lychee](#lychee)
     8. [Defrag-life](#defrag-life)
-    9. [Chachatte-team](#chachatte-team)
+    9. [CCTeam](#ccteam)
 
    </details>
 6. <details>
@@ -134,7 +134,7 @@ These are the tools we are going to run :
 And also some personal applications :
 
 - My first **PHP** / **MySQL** website from the early 2000's ! : https://github.com/Yann39/defrag-life
-- A **GraphQL API**  (**Java** / **Spring Boot**) for one of my **Flutter** mobile applications : https://github.com/Yann39/chachatte-team
+- A **GraphQL API**  (**Java** / **Spring Boot**) for one of my **Flutter** mobile applications : https://github.com/Yann39/ccteam-graphql
 
 All of this runs on a single **Banana Pi M5 board** ! With the following specifications :
 
@@ -857,14 +857,14 @@ So, let's create **subdomains** from the domain name registrar settings, for eve
 - `wireguard.example.com` : To access the [WireGuard](#wireguard) server
 - `quake.example.com` : To access the [Defrag-life](#defrag-life) website
 - `lychee.example.com` : To access the [Lychee](#lychee) website
-- `chachatte.example.com` : To access the [Chachatte team](#chachatte-team-api) APIs
+- `ccteam.example.com` : To access the [CCTeam](#ccteam) APIs
 
 And add corresponding **CNAME records** to point to the dynamic DNS `myddns.ddns.net` :
 
 - `CNAME	wireguard	    myddns.ddns.net`
 - `CNAME	quake	        myddns.ddns.net`
 - `CNAME	lychee	        myddns.ddns.net`
-- `CNAME	chachatte	    myddns.ddns.net`
+- `CNAME	ccteam	        myddns.ddns.net`
 
 A **CNAME record** is just a records which points a name to another name instead of pointing to an IP address (like **A** records).
 
@@ -1189,7 +1189,7 @@ This config file :
 :page_facing_up: _docker-compose.yml_ :
 
 ```yaml
-version: "3.8"
+version: "3.7"
 
 services:
 
@@ -1681,7 +1681,7 @@ It simply defines environment variables to be used in the Docker Compose file.
 :page_facing_up: _docker_compose.yaml_ :
 
 ```yaml
-version: "3.8"
+version: "3.7"
 
 networks:
 
@@ -1888,6 +1888,7 @@ When a user enters the URL in the browser, the browser need to know the IP addre
    to find the IP address from the DNS server responsible for the domain name
 
 In our case every request from the **local network** is forwarded to **Pi-hole**, so the IP resolving will always go through **Pi-Hole** and **Unbound**.
+See [Network flow](#network-flow) later below for a more graphical representation of the network flow.
 
 You can first test that each service is resolvable using `nslookup` command, i.e. :
 
@@ -2576,7 +2577,7 @@ Then simply copy the _docker-compose.yml_ file from this project's _portainer_ d
 :page_facing_up: _docker-compose.yml_ :
 
 ```yaml
-version: "3.8"
+version: "3.7"
 
 services:
 
@@ -2716,7 +2717,7 @@ Then simply copy the _docker-compose.yml_ file from this project's _phpmyadmin_ 
 _docker-compose.yml_ :
 
 ```yaml
-version: "3.8"
+version: "3.7"
 
 services:
 
@@ -2869,7 +2870,7 @@ Then copy :
 :page_facing_up: _docker-compose.yml_ :
 
 ```yaml
-version: "3.8"
+version: "3.7"
 
 services:
 
@@ -3023,7 +3024,7 @@ services:
         logo: "https://cdn-icons-png.flaticon.com/512/705/705647.png"
         subtitle: "GraphQL API for our motoclub mobile application"
         tag: "app"
-        url: "https://chachatte.example.com/chachatte-gql/graphql"
+        url: "https://ccteam.example.com/ccteam-gql/graphql"
       - name: "Defrag-life"
         logo: "https://cdn2.steamgriddb.com/file/sgdb-cdn/icon_thumb/946af3555203afdb63e571b873e419f6.png"
         subtitle: "Quake 3 arena Defrag website"
@@ -3120,7 +3121,7 @@ Then simply copy the _docker-compose.yml_ file from this project's _dashdot_ dir
 :page_facing_up: _docker-compose.yml_ :
 
 ```yaml
-version: "3.8"
+version: "3.7"
 
 services:
 
@@ -3250,7 +3251,7 @@ Then simply copy the _docker-compose.yml_ file from this project's _uptime-kuma_
 :page_facing_up: _docker-compose.yml_ :
 
 ```yaml
-version: "3.8"
+version: "3.7"
 
 services:
 
@@ -3424,7 +3425,7 @@ It simply defines the credentials as environment variables to be used in the Com
 :page_facing_up: _docker-compose.yml_ :
 
 ```yaml
-version: "3.8"
+version: "3.7"
 
 services:
 
@@ -3507,34 +3508,94 @@ To track a website, simply follow the instruction by adding the required embed c
 
 ## Lychee
 
+<img src="images/logo-lychee.png" alt="Lychee logo"/>
+
+**Lychee** is a photo management tool that allow to upload, manage and share photos.
+I pick this one out of all the others because it is quite simple, it doesn't have too many extras that I don't need.
+It also allows to directly use EXIF data to be used as title, etc. or to display a map.
+
+```mermaid
+flowchart LR
+    style INCOMING_REQUEST fill: #205566
+    style TRAEFIK_CONTAINER fill: #663535
+    style APP_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    style TRAEFIK_MIDDLEWARE fill: #806030
+    style SINGLE_BOARD_COMPUTER fill: #665555
+    style CONTAINER_ENGINE fill: #664545
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_APP_PORT{{80/tcp}}
+    TRAEFIK_ROUTER_APP(lychee.example.com)
+    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
+    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph APP_CONTAINER[LYCHEE CONTAINER]
+                DOCKER_APP_PORT
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_APP
+                end
+
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
+                    TRAEFIK_MIDDLEWARE_REDIRECT
+                end
+
+                TRAEFIK_MIDDLEWARE_REDIRECT --> DOCKER_APP_PORT
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
+            end
+
+        end
+    end
+```
+
+No IP whitelisting here as this service will be open to the internet without restriction.
+
+### Setting up
+
 todo
 
 ## Defrag-life
 
 todo
 
-## Chachatte Team
+## CCTeam
 
 Create a directory to hold the app :
 
 ```bash
-mkdir /opt/apps/chachatte-team
-cd /opt/apps/chachatte-team
+mkdir /opt/apps/ccteam
+cd /opt/apps/ccteam
 ```
 
-Create the _Dockerfile_ and _docker-compose.yml_ files based on the files in the _chachatte-team_ folder in this project.
+Create the _Dockerfile_ and _docker-compose.yml_ files based on the files in the _ccteam_ folder in this project.
 
 In the same directory, create a _.env_ file to hold the environment variables :
 
 ```text
-MARIADB_ROOT_PASSWORD=password
-MARIADB_DATABASE=chachatte_team
-MARIADB_USER=chachatte
-MARIADB_PASSWORD=password
-SPRING_PROFILES_ACTIVE=prd
+MARIADB_ROOT_PASSWORD=<root_password>
+MARIADB_DATABASE=<db_name>
+MARIADB_USER=<username>
+MARIADB_PASSWORD=<password>
+MAIL_SERVER_HOST=<mail_server_host>
+MAIL_SERVER_PORT=<mail_server_port>
+MAIL_SERVER_USERNAME=<mail_server_username>
+MAIL_SERVER_PASSWORD=<mail_server_password>
+JWT_SECRET=<jwt_secret>
+JWT_EXPIRATION_TIME=<jwt_expiration_time>
 ```
 
-Move the application JAR file (_chachatte-team-graphql.jar_) into the current directory.
+Move the application JAR file (_ccteam-graphql.jar_) into the current directory.
 
 Start :
 
@@ -3544,12 +3605,12 @@ sudo docker-compose up -d
 
 This will create 2 containers :
 
-- A container holding the **MariaDB** database, exposed on port **3306**
+- A container holding the **MariaDB** database
 - A container holding the **Java** application (based on the provided _Dockerfile_), exposed on port **5001**
 
-Then the API is available at : https://chachatte.example.com/context/graphql
+Then the API is available at : https://ccteam.example.com/ccteam-gql/graphql
 
-You will get an access denied as you need a valid **JWT token**, but it confirms that the service is running correctly :
+You will get access denied as you need a valid **JWT token**, but it confirms that the service is running correctly :
 
 ```json
 {

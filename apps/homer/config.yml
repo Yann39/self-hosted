@@ -136,7 +136,7 @@ services:
         logo: "https://cdn-icons-png.flaticon.com/512/705/705647.png"
         subtitle: "GraphQL API for our motoclub mobile application"
         tag: "app"
-        url: "https://chachatte.example.com/chachatte-gql/graphql"
+        url: "https://ccteam.example.com/ccteam-gql/graphql"
       - name: "Defrag-life"
         logo: "https://cdn2.steamgriddb.com/file/sgdb-cdn/icon_thumb/946af3555203afdb63e571b873e419f6.png"
         subtitle: "Quake 3 arena Defrag website"

@@ -1,8 +1,8 @@
-FROM arm64v8/eclipse-temurin:17-jre
+FROM arm64v8/eclipse-temurin:21-jre
 
 LABEL maintainer="Yann39"
 
-COPY ./chachatte-team-graphql.jar /opt/app.jar
+COPY ./ccteam-graphql.jar /opt/app.jar
 
 RUN addgroup --gid 1000 --system javauser && \
     adduser --uid 1000 --system javauser --ingroup javauser && \

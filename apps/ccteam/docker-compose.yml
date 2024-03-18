@@ -1,0 +1,67 @@
+version: "3.7"
+
+services:
+
+  ccteam-app:
+    depends_on:
+      - ccteam-db
+    build:
+      context: ./
+    container_name: ccteam-app
+    restart: on-failure
+    env_file: ./.env
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://ccteam-db:3306/$MARIADB_DATABASE?useUnicode=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=$MARIADB_USER
+      - SPRING_DATASOURCE_PASSWORD=$MARIADB_PASSWORD
+      - SPRING_MAIL_HOST=$MAIL_SERVER_HOST
+      - SPRING_MAIL_PORT=$MAIL_SERVER_PORT
+      - SPRING_MAIL_USERNAME=$MAIL_SERVER_USERNAME
+      - SPRING_MAIL_PASSWORD=$MAIL_SERVER_PASSWORD
+      - CT_JWT_TOKEN_SECRET=$JWT_SECRET
+      - CT_JWT_TOKEN_EXPIRATION-TIME=$JWT_EXPIRATION_TIME
+    networks:
+      - ccteam-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ccteam.rule=Host(`ccteam.example.com`)"
+      - "traefik.http.routers.ccteam.entrypoints=websecure"
+      - "traefik.http.routers.ccteam.tls.certresolver=default"
+      - "traefik.http.services.ccteam.loadbalancer.server.port=5001"
+      - "traefik.docker.network=traefik-net"
+
+  ccteam-db:
+    image: arm64v8/mariadb:latest
+    container_name: ccteam-db
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      - MARIADB_AUTO_UPGRADE="1"
+      - MARIADB_ROOT_PASSWORD=$MARIADB_ROOT_PASSWORD
+      - MARIADB_DATABASE=$MARIADB_DATABASE
+      - MARIADB_USER=$MARIADB_USER
+      - MARIADB_PASSWORD=$MARIADB_PASSWORD
+    volumes:
+      - ccteam-db-vol:/var/lib/mysql
+    networks:
+      - ccteam-net
+      - phpmyadmin-net
+
+volumes:
+
+  ccteam-db-vol:
+    name: ccteam-db-vol
+
+networks:
+
+  ccteam-net:
+    name: ccteam-net
+
+  traefik-net:
+    name: traefik-net
+    external: true
+
+  phpmyadmin-net:
+    name: phpmyadmin-net
+    external: true
