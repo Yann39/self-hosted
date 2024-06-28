@@ -5,12 +5,13 @@ services:
   traefik:
     image: traefik:latest
     container_name: traefik
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock       # So that Traefik can listen to the Docker events
-      - ./traefik.yml:/etc/traefik/config.yml           # Traefik configuration
+      - /var/run/docker.sock:/var/run/docker.sock:ro    # So that Traefik can listen to the Docker events
+      - ./traefik.yml:/etc/traefik/config.yml:ro        # Traefik configuration
       - ./acme.json:/acme.json                          # For Let's Encrypt certificate storage
       - ./credentials.txt:/credentials.txt:ro           # For Traefik dashboard credentials
     networks:

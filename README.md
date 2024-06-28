@@ -1022,7 +1022,7 @@ sudo mkdir /opt/apps/traefik
 
 Then copy the files from this project's _traefik_ directory into the _/opt/apps/traefik_ directory :
 
-- _docker_compose.yml_ : The Traefik service definition
+- _docker-compose.yml_ : The Traefik service definition
 - _traefik.yml_ : The Traefik static configuration
 - _credentials.txt_ : A file that will hold users credentials to access the Traefik dashboard (restricted with **basic authentication**),
   see [Generate basic authentication credentials](#generate-basic-authentication-credentials)
@@ -1271,9 +1271,9 @@ This **Compose** file mainly :
 Finally, run the Compose file :
 
 ```bash
-sudo docker-compose -f /opt/apps/traefik/docker_compose.yml up -d
+sudo docker-compose -f /opt/apps/traefik/docker-compose.yml up -d
 # You may need to force recreate if you changed a config from an already running configuration
-sudo docker-compose -f /opt/apps/traefik/docker_compose.yml up -d --force-recreate
+sudo docker-compose -f /opt/apps/traefik/docker-compose.yml up -d --force-recreate
 ```
 
 You should end-up with a running `traefik` container.
@@ -1684,7 +1684,7 @@ It simply defines environment variables to be used in the Docker Compose file.
 
 #### Services definition
 
-:page_facing_up: _docker_compose.yaml_ :
+:page_facing_up: _docker-compose.yaml_ :
 
 ```yaml
 version: "3.7"
@@ -1854,7 +1854,7 @@ This **Compose** file roughly :
 Simply run the Compose file :
 
 ```bash
-sudo docker-compose -f /opt/apps/wireguard/docker_compose.yml up -d
+sudo docker-compose -f /opt/apps/wireguard/docker-compose.yml up -d
 ```
 
 You should end-up with **4** running containers :
@@ -2635,7 +2635,7 @@ Things to notice :
 Finally, simply run the Compose file :
 
 ```bash
-sudo docker-compose -f /opt/apps/portainer/docker_compose.yml up -d
+sudo docker-compose -f /opt/apps/portainer/docker-compose.yml up -d
 ```
 
 You should end-up with a running `portainer` container.
@@ -2775,7 +2775,7 @@ Things to notice :
 Finally, simply run the Compose file :
 
 ```bash
-sudo docker-compose -f /opt/apps/phpmyadmin/docker_compose.yml up -d
+sudo docker-compose -f /opt/apps/phpmyadmin/docker-compose.yml up -d
 ```
 
 You should end-up with a running `phpmyadmin` container.
@@ -3045,7 +3045,7 @@ This is simply the configuration file that is used by the application to display
 Finally, simply run the Compose file :
 
 ```bash
-sudo docker-compose -f /opt/apps/homer/docker_compose.yml up -d
+sudo docker-compose -f /opt/apps/homer/docker-compose.yml up -d
 ```
 
 You should end-up with a running `homer` container.
@@ -3175,7 +3175,7 @@ Things to notice :
 Finally, simply run the Compose file :
 
 ```bash
-sudo docker-compose -f /opt/apps/dashdot/docker_compose.yml up -d
+sudo docker-compose -f /opt/apps/dashdot/docker-compose.yml up -d
 ```
 
 You should end-up with a running `dashdot` container.
@@ -3309,7 +3309,7 @@ Things to notice :
 Finally, simply run the Compose file :
 
 ```bash
-sudo docker-compose -f /opt/apps/uptime-kuma/docker_compose.yml up -d
+sudo docker-compose -f /opt/apps/uptime-kuma/docker-compose.yml up -d
 ```
 
 You should end-up with a running `uptime-kuma` container.
@@ -3498,7 +3498,7 @@ Things to notice :
 Finally, simply run the Compose file :
 
 ```bash
-sudo docker-compose -f /opt/apps/uptime-kuma/docker_compose.yml up -d
+sudo docker-compose -f /opt/apps/uptime-kuma/docker-compose.yml up -d
 ```
 
 You should end-up with 2 running containers :
@@ -3669,7 +3669,7 @@ Things to notice :
 Finally, simply run the Compose file :
 
 ```bash
-sudo docker-compose -f /opt/apps/lychee/docker_compose.yml up -d
+sudo docker-compose -f /opt/apps/lychee/docker-compose.yml up -d
 ```
 
 You should end-up with 2 running containers :
