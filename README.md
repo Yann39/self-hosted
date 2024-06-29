@@ -806,8 +806,8 @@ flowchart LR
 The following changes to the IP settings are required if you want all your internet traffic to be redirected to your Banana Pi board so that
 every request goes through **Pi-Hole** and use the custom **DNS resolver** (**Unbound**) :
 
-- Assign a **static IP address** to the Banana Pi board, for example `192.168.0.16` (I have local **DHCP** enabled)
-- Set **DNS** (primary and secondary) manually, to point to the Banana Pi board address set up above (`192.168.0.16`)
+- Assign a **static IP address** to the Banana Pi board, for example `192.168.0.17` (I have local **DHCP** enabled)
+- Set **DNS** (primary and secondary) manually, to point to the Banana Pi board address set up above (`192.168.0.17`)
 
 Of course Pi-Hole container have to expose port **53** to receive incoming DNS requests. Refer to [Pi-hole](#pi-hole) setup for more details.
 
@@ -877,6 +877,14 @@ A **CNAME record** is just a records which points a name to another name instead
 > [!NOTE]
 > Services that will be only accessible from the local network or through VPN do **not** need to have a subdomain defined at this level.
 > We will use Pi-Hole's **local DNS records** for that. See [Pi-Hole configuration](#pi-hole).
+
+However, while the VPN stuff is fully functional and to be able to do the configuration easily from your client machine,
+you may want to temporarily add the following subdomains (also remove the IP whitelisting middleware in the corresponding service configuration),
+else you will be blocked by IP whitelisting :
+
+- `wireguard-ui.example.com` : To configure the WireGuard VPN and create clients
+- `portainer.example.com` : To manage Docker containers (start/stop, check logs, etc.)
+- `pihole.example.com` : To configure the local DNS
 
 ## Port forwarding
 
@@ -1401,7 +1409,7 @@ The Compose file will run a **WireGuard server**, which need to be configured.
 First, after WireGuard installation, it is recommended to change the permissions of the _wg0.conf_ file (holding the server configuration) :
 
 ```shell
-chmod 600 /etc/wireguard/wg0.conf
+sudo chmod 600 /opt/apps/wireguard/wireguard/wg0.conf
 ```
 
 else in the logs you will see a warning :
