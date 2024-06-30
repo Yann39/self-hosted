@@ -11,6 +11,7 @@ services:
     restart: unless-stopped
     environment:
       - INIT_ASSETS=0
+      - IPV6_DISABLE=1
     networks:
       - homer-net
       - traefik-net

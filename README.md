@@ -875,16 +875,16 @@ And add corresponding **CNAME records** to point to the dynamic DNS `myddns.ddns
 A **CNAME record** is just a records which points a name to another name instead of pointing to an IP address (like **A** records).
 
 > [!NOTE]
-> Services that will be only accessible from the local network or through VPN do **not** need to have a subdomain defined at this level.
+> Services that will only be accessible from the local network or through VPN do **not** need to have a subdomain defined at this level.
 > We will use Pi-Hole's **local DNS records** for that. See [Pi-Hole configuration](#pi-hole).
-
-However, while the VPN stuff is fully functional and to be able to do the configuration easily from your client machine,
-you may want to temporarily add the following subdomains (also remove the IP whitelisting middleware in the corresponding service configuration),
-else you will be blocked by IP whitelisting :
-
-- `wireguard-ui.example.com` : To configure the WireGuard VPN and create clients
-- `portainer.example.com` : To manage Docker containers (start/stop, check logs, etc.)
-- `pihole.example.com` : To configure the local DNS
+>
+> However, while the VPN stuff is fully functional and to be able to do the configuration easily from your client machine,
+> you may want to temporarily create subdomains and add CNAME records for the following subdomains
+> (also remove the IP whitelisting middleware in the corresponding service configuration), else you will be blocked by IP whitelisting :
+>
+> - `wireguard-ui.example.com` : To configure the WireGuard VPN and create clients
+> - `portainer.example.com` : To manage Docker containers (start/stop, check logs, etc.)
+> - `pihole.example.com` : To configure the local DNS
 
 ## Port forwarding
 
@@ -1050,7 +1050,7 @@ You can generate a user/password using **htpasswd** :
 1. Install the needed package if not present :
 
     ```bash
-    sudo apt-get install apache2-util
+    sudo apt install apache2-util
     ```
 
 2. Generate the credentials (we use **bcrypt** with a computing time of 10) :
@@ -3697,7 +3697,342 @@ The application is available at https://lychee.example.com.
 
 ## Defrag-life
 
-todo
+<table>
+  <tr>
+    <td>
+      <img src="images/logo-quake3arena.png" alt="Quake 3 arena logo" height="128"/>
+    </td>
+    <td>
+      <img src="images/logo-defrag.png" alt="DeFRaG logo" height="64"/>
+    </td>
+  </tr>
+</table>
+
+**Defrag-life** is a **PHP** / **MySQL** website I made in the early 2000's, about the **DeFRaG** mod of the **Quake 3 arena** game.
+The project can be found here : https://github.com/Yann39/defrag-life
+I simply keep hosting it as a _souvenir_, but it is a static snapshot, it is not intended to be used anymore.
+
+We will use **Nginx** as **HTTP server** along with the **PHP-FPM** module (**FastCGI Process Manager**) for processing PHP files.
+At the time of writing this is the preferred method of processing PHP pages with Nginx and is faster than traditional CGI-based methods.
+
+The website also requires a **MySQL** or **MariaDB** database, we will use MariaDB.
+
+```mermaid
+flowchart LR
+    style INCOMING_REQUEST fill: #205566
+    style TRAEFIK_CONTAINER fill: #663535
+    style NGINX_CONTAINER fill: #663535
+    style PHP_CONTAINER fill: #663535
+    style MARIADB_CONTAINER fill: #663535
+    style TRAEFIK_ROUTER fill: #806030
+    style TRAEFIK_MIDDLEWARE fill: #806030
+    style SERVER_DEVICE fill: #665555
+    style CONTAINER_ENGINE fill: #664545
+    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_NGINX_PORT{{80/tcp}}
+    DOCKER_PHP_PORT{{9000/tcp}}
+    DOCKER_MARIADB_PORT{{3306/tcp}}
+    TRAEFIK_ROUTER_APP(quake.example.com)
+    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
+    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
+
+    subgraph SERVER_DEVICE[MINI_PC]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph NGINX_CONTAINER[NGINX CONTAINER]
+                DOCKER_NGINX_PORT
+            end
+
+            subgraph PHP_CONTAINER[PHP-FPM CONTAINER]
+                DOCKER_PHP_PORT
+            end
+
+            subgraph MARIADB_CONTAINER[MARIADB CONTAINER]
+                DOCKER_MARIADB_PORT
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_APP
+                end
+
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
+                    TRAEFIK_MIDDLEWARE_REDIRECT
+                end
+
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
+                TRAEFIK_MIDDLEWARE_REDIRECT --> DOCKER_NGINX_PORT
+                DOCKER_NGINX_PORT --> DOCKER_PHP_PORT
+                DOCKER_PHP_PORT --> DOCKER_MARIADB_PORT
+            end
+
+        end
+    end
+```
+
+### Setting up
+
+First, create a folder to hold the configuration :
+
+```bash
+sudo mkdir /opt/apps/defrag-life
+```
+
+Also create a _data_ directory to hold the application files (PHP, HTML, CSS, Javascript files) :
+
+```bash
+mkdir /opt/apps/defrag-life/data
+```
+
+and copy inside that folder the content from https://github.com/Yann39/defrag-life.
+
+Then copy the files from this project's _defrag-life_ directory into the _/opt/apps/defrag-life_ directory :
+
+- _Dockerfile_ : The file responsible for building image of PHP-FPM
+- _docker-compose.yml_ : The definition of the services
+- _.env_ : The environment variables (for database connection)
+- _default.conf_ : The Nginx configuration
+- _www\.conf_ : The PHP-FPM pool configuration
+
+### Details
+
+#### Dockerfile
+
+:page_facing_up: _Dockerfile_ :
+
+```dockerfile
+FROM php:8.2-fpm-alpine
+
+LABEL maintainer="Yann39"
+
+# Install mysqli extension
+RUN docker-php-ext-install mysqli
+
+RUN addgroup --gid 1000 --system phpuser && \
+    adduser --uid 1000 --system phpuser --ingroup phpuser && \
+    chown -R phpuser:phpuser /var/www/html && \
+    chmod -R 644 /var/www/html
+
+USER 1000
+
+# Start PHP-FPM
+CMD ["php-fpm"]
+```
+
+This **Dockerfile** allows us to create the Docker image for the **PHP-FPM** service,
+the image is based on the popular **Alpine Linux** project, which is much smaller than most distribution base images.
+
+In this Dockerfile we also install the **mysqli** extension which will be required to connect to the MariaDB database from PHP.
+
+Finally, we create a `phpuser` user that will run the process (for security purposes we always ensure that our images run as non-root).
+
+In order to use this image, an **HTTP server** or a **reverse proxy** (such as **Nginx**, **Apache**, or other tool which speaks the **FastCGI** protocol) is required,
+that's why we use Nginx.
+
+#### Service definition
+
+:page_facing_up: _docker-compose.yml_ :
+
+```yaml
+version: "3.7"
+
+services:
+
+  nginx:
+    image: nginx:latest
+    container_name: defrag-life-nginx
+    volumes:
+      - ./data/:/var/www/html/
+      - ./default.conf:/etc/nginx/conf.d/default.conf
+    restart: unless-stopped
+    networks:
+      - defrag-life-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.defrag-life.rule=Host(`quake.example.com`)"
+      - "traefik.http.routers.defrag-life.entrypoints=websecure"
+      - "traefik.http.routers.defrag-life.tls.certresolver=default"
+      - "traefik.http.services.defrag-life.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+
+  php-fpm:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: defrag-life-php
+    networks:
+      - defrag-life-net
+    volumes:
+      - ./data/:/var/www/html/
+      - ./www.conf:/usr/local/etc/php-fpm.d/www.conf
+
+  mariadb:
+    image: mariadb:latest
+    container_name: defrag-life-db
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      - MARIADB_AUTO_UPGRADE="1"
+      - MARIADB_ROOT_PASSWORD=$MARIADB_ROOT_PASSWORD
+      - MARIADB_DATABASE=$MARIADB_DATABASE
+      - MARIADB_USER=$MARIADB_USER
+      - MARIADB_PASSWORD=$MARIADB_PASSWORD
+    volumes:
+      - defrag-life-db-vol:/var/lib/mysql
+    networks:
+      - defrag-life-net
+      - phpmyadmin-net
+
+volumes:
+
+  defrag-life-db-vol:
+    name: defrag-life-db-vol
+
+networks:
+
+  defrag-life-net:
+    name: defrag-life-net
+
+  traefik-net:
+    name: traefik-net
+    external: true
+
+  phpmyadmin-net:
+    name: phpmyadmin-net
+    external: true
+```
+
+Here we define 3 services :
+- `nginx` : the HTTP server which will speak with the PHP-FPM service to interpret PHP files (whenever the server gets a PHP script request, it utilizes a proxy,
+  FastCGI connection to pass that request on to the PHP-FPM service)
+    - It defines 2 volumes to bind the website files and the Nginx configuration file (see [Nginx configuration file](#nginx-configuration-file))
+    - It uses Traefik **labels** to :
+        - create a **service** which will point to our container application running on port `80`
+        - create an HTTP **router** that will match `quake.example.com` URL on our `websecure` **entrypoint** to point to our service
+        - add **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+- `php-fpm` : the PHP-FPM service responsible for processing PHP scripts
+    - It uses our own Dockerfile, see [Dockerfile](#dockerfile)
+    - It defines 2 volumes to bind the website files and the PHP-FPM pool configuration file (see [PHP-FPM configuration file](#php-fpm-configuration-file))
+    - It will run by default on port `9000`
+- `mariadb` : The MariaDB database that will hold the application data
+    - It uses our _.env_ file to retrieve environment variables values for database connection
+    - It defines a named volume `defrag-life-db-vol` that will hold the database data
+    - It will run by default on port `3306`
+
+All services will run in a `defrag-life-net` **network**, but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered,
+and `phpmyadmin-net` so that the database is reachable from PhpMyAdmin, see [PhpMyAdmin](#phpmyadmin).
+
+#### Environment variables
+
+:page_facing_up: _.env_ :
+
+```env
+MARIADB_ROOT_PASSWORD=<root_password>
+MARIADB_DATABASE=<db_name>
+MARIADB_USER=<username>
+MARIADB_PASSWORD=<password>
+```
+
+It simply set environment variable values (used in the `mariadb` service in the Compose file).
+
+#### Nginx configuration file
+
+:page_facing_up: _www\.conf_ :
+
+```conf
+; Start a new pool named 'www'.
+[www]
+; Unix user/group of the child processes.
+user = www-data
+group = www-data
+; The address on which to accept FastCGI requests.
+listen = 127.0.0.1:9000
+; Choose how the process manager will control the number of child processes.
+pm = dynamic
+pm.max_children = 5
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+; The ping URI to call the monitoring page of FPM.
+ping.path = /ping
+; This directive may be used to customize the response of a ping request.
+ping.response = pong
+```
+
+This is a quite basic configuration file for Nginx, we just enabled **ping**,
+so we can ping the service from monitoring tool like **Uptime-Kuma**.
+
+#### PHP-FPM configuration file
+
+:page_facing_up: _default.conf_ :
+
+```conf
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    root /var/www/html;
+    index index.php index.html;
+
+    error_log  /var/log/nginx/error.log;
+    access_log /var/log/nginx/access.log;
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        try_files $uri =404;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_pass php-fpm:9000;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    }
+
+    location ~ ^/ping$ {
+        access_log off;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_pass php-fpm:9000;
+    }
+}
+```
+
+This is also a quite basic configuration file for PHP-FPM :
+- it listens for incoming requests on port `80` (and set it as default server, although it is the only one)
+- it sets the server name to an invalid server names which never intersect with any real name
+  (as they are only one server blocks for port `80`, Nginx will not even bother comparing `server_name` with a request's Host header,
+  all the requests would be directed there anyway)
+- it sets the root directory to `/var/www/html` for static content in the file system
+- it defines files that will be used as an index (_index.php_ and _index.html_)
+- it defines the location of error and access log files
+- it sets a location to match PHP files (`.php$` will match files ending with _.php_, _.php3_, etc.) to be processed by our PHP-FPM service
+- it sets a location to match _/ping_ endpoint to ping our PHP-FPM service
+
+### Run
+
+Finally, simply run the Compose file :
+
+```bash
+sudo docker-compose -f /opt/apps/defrag-life/docker-compose.yml up -d
+```
+
+You should end-up with 3 running containers :
+- `defrag-life-nginx` : The HTTP server
+- `defrag-life-php` : The PHP-FPM service
+- `defrag-life-mariadb` : The MariaDB database
+
+It should also have generated the needed Let's Encrypt certificates in the _acme.json_ file in the Traefik folder.
+
+The application will be available at https://quake.example.com.
+
+<img src="images/screen-defrag-life.png" alt="Defrag-Life website screenshot"/>
 
 ## CCTeam
 
