@@ -2116,10 +2116,11 @@ For the following examples, we will consider that the **user** enters http://mya
 Here is what happen when you try to reach a service which is **open to the internet**, without using any VPN,
 from your local network holding your homelab (on the left), or from any other location (on the right) :
 
-<table>
+<table style="display:table;width:100%">
 <tr>
 <td>
-<img width="450px" height="1px" alt="1px blank image just for spacing">
+
+From local network
 
 ```mermaid
 flowchart TB
@@ -2237,7 +2238,8 @@ flowchart TB
 
 </td>
 <td>
-<img width="450px" height="1px" alt="1px blank image just for spacing">
+
+From outside local network
 
 ```mermaid
 flowchart TB
@@ -2330,7 +2332,7 @@ flowchart TB
     BROWSER((browser)) <--> LOCAL_DNS_RESOLVER[/local resolver\]
     LOCAL_DNS_RESOLVER <--->|router local IP address| ROUTER2_DNS
     ROUTER2_DNS <--> CLOUDFLARE
-    CLOUDFLARE <---> ROOT_DNS_SERVERS
+    CLOUDFLARE <------> ROOT_DNS_SERVERS
     linkStyle 0 stroke-width: 4px, stroke: red
     linkStyle 1 stroke-width: 4px, stroke: red
     linkStyle 2 stroke-width: 4px, stroke: yellow, stroke-dasharray: 5
@@ -4047,7 +4049,7 @@ Create the _Dockerfile_ and _docker-compose.yml_ files based on the files in the
 
 In the same directory, create a _.env_ file to hold the environment variables :
 
-```text
+```env
 MARIADB_ROOT_PASSWORD=<root_password>
 MARIADB_DATABASE=<db_name>
 MARIADB_USER=<username>
