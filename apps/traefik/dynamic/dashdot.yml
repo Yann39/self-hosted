@@ -1,0 +1,18 @@
+http:
+  services:
+    dashdot:
+      loadBalancer:
+        servers:
+          - url: http://dashdot:3001
+
+  routers:
+    dashdot:
+      rule: 'Host(`dashdot.example.com`)'
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: default
+      service: dashdot
+      middlewares:
+        - vpn-whitelist@docker
+        - dashdot@docker

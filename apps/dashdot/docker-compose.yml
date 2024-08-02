@@ -12,13 +12,18 @@ services:
       - dashdot-net
       - traefik-net
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashdot.rule=Host(`dashdot.example.com`)"
-      - "traefik.http.routers.dashdot.entrypoints=websecure"
-      - "traefik.http.routers.dashdot.tls.certresolver=default"
-      - "traefik.http.routers.dashdot.middlewares=vpn-whitelist"
-      - "traefik.http.services.dashdot.loadbalancer.server.port=3001"
-      - "traefik.docker.network=traefik-net"
+      - "sablier.enable=true"
+
+      # The config below has been moved to dynamic config /apps/traefik/dynamic/dashdot.yml as required by Sablier
+      # You can uncomment the lines below and delete the file /apps/traefik/dynamic/dashdot.yml if you don't use Sablier
+
+      #- "traefik.enable=true"
+      #- "traefik.http.routers.dashdot.rule=Host(`dashdot.example.com`)"
+      #- "traefik.http.routers.dashdot.entrypoints=websecure"
+      #- "traefik.http.routers.dashdot.tls.certresolver=default"
+      #- "traefik.http.routers.dashdot.middlewares=vpn-whitelist"
+      #- "traefik.http.services.dashdot.loadbalancer.server.port=3001"
+      #- "traefik.docker.network=traefik-net"
 
 networks:
 

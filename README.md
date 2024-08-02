@@ -2,8 +2,8 @@
 
 # Personal self-hosting guide
 
-![Static Badge](https://img.shields.io/badge/Version-1.1.7-2AAB92)
-![Static Badge](https://img.shields.io/badge/Last_update-24_Feb_2024-blue)
+![Static Badge](https://img.shields.io/badge/Version-1.2.0-2AAB92)
+![Static Badge](https://img.shields.io/badge/Last_update-02_Aug_2024-blue)
 ![Static Badge](https://img.shields.io/badge/Free_&_Open_source-GPL_V3-green)
 
 This project describes my personal **self-hosted** infrastructure setup, running on a **Banana Pi M5** board.

@@ -12,6 +12,9 @@ providers:
   docker:
     watch: true
     exposedByDefault: false
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
 
 certificatesResolvers:
   default:
@@ -21,6 +24,12 @@ certificatesResolvers:
       caServer: 'https://acme-v02.api.letsencrypt.org/directory'
       dnsChallenge:
         provider: <your_provider_here>
+
+experimental:
+  plugins:
+    sablier:
+      moduleName: "github.com/acouvreur/sablier"
+      version: "v1.7.0"
 
 log:
   level: info

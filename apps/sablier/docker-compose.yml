@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   sablier:
-    image: acouvreur/sablier:1.4.1-beta.1-beta.11
+    image: acouvreur/sablier:latest
     container_name: sablier
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -15,19 +15,20 @@ services:
       - traefik-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.sablier.rule=Host(`sablier.example.com`)"
-      - "traefik.http.routers.sablier.entrypoints=websecure"
-      - "traefik.http.routers.sablier.tls.certresolver=default"
-      - "traefik.http.services.sablier.loadbalancer.server.port=9000"
-      - "traefik.docker.network=traefik-net"
-
-volumes:
-  sablier-vol:
-    name: sablier-vol
+      # Dashdot
+      - "traefik.http.middlewares.dashdot.plugin.sablier.names=dashdot"
+      - "traefik.http.middlewares.dashdot.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.dashdot.plugin.sablier.sessionDuration=5m"
+      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.theme=hacker-terminal"
+      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.displayName=Dashdot"
+      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.refreshFrequency=1s"
+      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.showDetails=true"
 
 networks:
+
   sablier-net:
     name: sablier-net
+
   traefik-net:
     name: traefik-net
     external: true
