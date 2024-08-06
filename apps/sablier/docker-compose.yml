@@ -16,13 +16,13 @@ services:
     labels:
       - "traefik.enable=true"
       # Dashdot
-      - "traefik.http.middlewares.dashdot.plugin.sablier.names=dashdot"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.sablierUrl=http://sablier:10000"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.sessionDuration=5m"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.theme=hacker-terminal"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.displayName=Dashdot"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.refreshFrequency=1s"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.showDetails=true"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.names=dashdot"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.sessionDuration=5m"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.dynamic.theme=hacker-terminal"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.dynamic.displayName=Dashdot"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.dynamic.refreshFrequency=1s"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.dynamic.showDetails=true"
 
 networks:
 

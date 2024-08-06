@@ -15,4 +15,4 @@ http:
       service: dashdot
       middlewares:
         - vpn-whitelist@docker
-        - dashdot@docker
+        - sablier-dashdot@docker

@@ -4112,16 +4112,17 @@ You will get access denied as you need a valid **JWT token**, but it confirms th
 
 <img src="images/logo-sablier.png" alt="Sablier logo"/>
 
-Some of our services will be accessed quite rarely (UIs of monitoring tools, websites open only to family through VPN, etc.).
-It would be a shame to leave them running for days and waste resources when there are no requests, wouldn't it?
+Some of our services will be accessed quite rarely (i.e. UIs of monitoring tools, websites open only to family through VPN, etc.),
+it would be a shame to leave them running for days and waste resources while there are no requests, wouldn't it ?
 
 That's why we're going to use **Sablier**, a little tool that lets you start / stop containers on demand (also known as "scale-to-zero").
 Basically it allows to start a container when a request arrives, and stop it after a period of inactivity.
 
-Sablier provides 2 strategy, a **dynamic strategy** which provides a waiting page while the container is ready,
-and a **blocking strategy** which hangs the request until the container is ready (well suited for an API communication).
+Sablier provides 2 strategies, a **dynamic strategy** which provides a waiting page while the container is not ready,
+and a **blocking strategy** which hangs the request until the container is ready.
 
 We will use the dynamic strategy, well suited for a user that would access a frontend directly and expects to see a loading page.
+The blocking strategy is better suited for API communication.
 
 Basically here is how it works when using the dynamic strategy with Traefik :
 
@@ -4133,12 +4134,11 @@ flowchart LR
     style APP_CONTAINER fill: #663535
     style TRAEFIK_MIDDLEWARE fill: #806030
     DOCKER_SABLIER_PORT{{10000/tcp}}
-    DOCKER_APP_PORT{{app port}}
-    WAITING_PAGE(Waiting page)
-    TRAEFIK_MIDDLEWARE_APP(APP MIDDLEWARE)
+    DOCKER_APP_PORT{{myapp port}}
+    WAITING_PAGE(waiting page)
+    TRAEFIK_MIDDLEWARE_APP(sablier-myapp)
     INCOMING_REQUEST((INCOMING\nREQUEST))
-    INCOMING_REQUEST -->|"⓵"| TRAEFIK_MIDDLEWARE_APP
-
+    INCOMING_REQUEST --> TRAEFIK_MIDDLEWARE_APP
 
     subgraph SABLIER_CONTAINER[SABLIER CONTAINER]
         DOCKER_SABLIER_PORT
@@ -4155,19 +4155,24 @@ flowchart LR
             TRAEFIK_MIDDLEWARE_APP
         end
 
-        TRAEFIK_MIDDLEWARE_APP -->|"⓶"| DOCKER_SABLIER_PORT
-        DOCKER_SABLIER_PORT -->|"⓸ ready/not ready"| TRAEFIK_MIDDLEWARE_APP
-        TRAEFIK_MIDDLEWARE_APP -->|"⓹ⓐ ready"| DOCKER_APP_PORT
-        TRAEFIK_MIDDLEWARE_APP -->|"⓹ⓑ not ready"| WAITING_PAGE
-        DOCKER_SABLIER_PORT <-.->|"⓷ check status"| DOCKER_APP_PORT
+        TRAEFIK_MIDDLEWARE_APP --> DOCKER_SABLIER_PORT
+        DOCKER_SABLIER_PORT -->|"ready/not ready"| TRAEFIK_MIDDLEWARE_APP
+        TRAEFIK_MIDDLEWARE_APP -->|"ready"| DOCKER_APP_PORT
+        TRAEFIK_MIDDLEWARE_APP -->|"not ready"| WAITING_PAGE
+        DOCKER_SABLIER_PORT <-.->|"check status"| DOCKER_APP_PORT
     end
 ```
 
-When a request arrives, a specific middleware is responsible to contact Sablier to know if the container is ready or not.
-Sablier asks for the container status to the Docker provider, then return the result to the proxy, to either serve the waiting page or redirect to the application.
+When a request arrives, a **Traefik middleware** is responsible to contact Sablier to know if the target container is ready or not.
+Sablier asks for the container status to the **Docker provider**, then return the result to the proxy, to either serve the waiting page or redirect to the application.
 
 It continuously checks for instance status until it is ready, and will intend to start the underlying container if not started,
 or shut it down if it has reached the configured period of inactivity.
+
+> [!NOTE]
+> Note that you need one plugin configuration (one middleware) per application set if you want to start/stop them independently
+> or if you want to have different theme, display name, loading strategy or session duration.
+> In the flow chart above, `sablier-app` is a dedicated middleware for "myapp" application, but you could have several of them.
 
 ## Install Sablier
 
@@ -4208,6 +4213,7 @@ services:
       - traefik-net
     labels:
       - "traefik.enable=true"
+      # here we will add middleware configuration, see later in this guide
 
 networks:
 
@@ -4219,21 +4225,18 @@ networks:
     external: true
 ```
 
-Things to notice :
+Essentially :
 
-- We bind the Docker socket to the container because the Docker provider communicates with the _docker.sock_ socket to start and stop containers on demand
-- It uses Traefik **labels** to :
-    - create a **service** which will point to our container application running on port `80`
-    - create an HTTP **router** that will match `lychee.example.com` URL on our `websecure` **entrypoint** to point to our service
-    - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
-- It runs in its own **network** (`lychee-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
+- We bind the Docker **socket** to the container because the Docker provider communicates with the _docker.sock_ socket to start and stop containers on demand
+- We specify the command to start the server with the parameter to set the provider name (docker)
+- It runs in its own **network** (`sablier-net`) but must also share the same network as Traefik (`traefik-net`) so it can be discovered
 
 ## Install Traefik plugin
 
 There are **plugins** available for easier integration with major reverse proxies, Traefik in particular.
 Sablier is designed as an API that can be used on its own, reverse proxy integrations acts as a client of that API.
 
-Thus, simply add the following into the Traefik static configuration (_traefik.yml_ file) to load the plugin :
+Thus, simply add the following into the Traefik static configuration file (_traefik.yml_) to load the plugin :
 
 ```yaml
 experimental:
@@ -4243,15 +4246,15 @@ experimental:
       version: "v1.7.0"
 ```
 
-See the file _apps/traefik/traefik.yml_ from this repository.
+You can take a look at the _apps/traefik/traefik.yml_ file from this repository.
 
 ## Configure target applications
 
 In order for Sablier to be able to contact the containers to start and stop them,
-we need to change the configuration of the target service to use a dynamic configuration file instead of Docker labels.
+we need to change the configuration of the target service to use a **dynamic configuration file** instead of **Docker labels**.
 Indeed, Traefik no longer has access to container labels when a container is not running.
 
-We will configure Sablier for the Dashdot application, but it can be applied to any container :
+We will configure Sablier for the Dashdot application as an example, but it can be applied to any container :
 
 ```mermaid
 flowchart LR
@@ -4270,7 +4273,7 @@ flowchart LR
     WAITING_PAGE(Waiting page)
     TRAEFIK_ROUTER_APP(dashdot.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
-    TRAEFIK_MIDDLEWARE_DASHDOT(Dashdot middleware)
+    TRAEFIK_MIDDLEWARE_DASHDOT(sablier-dashdot)
     INCOMING_REQUEST((INCOMING\nREQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
@@ -4312,10 +4315,30 @@ flowchart LR
     end
 ```
 
-So let's transfer the labels from the service configuration file to a file in our Traefik dynamic configuration.
-I personally use a file per service, for example for Dashdot, create a file _dashdot.yml_.
+In the above flow chart we have named the Traefik middleware `sablier-dashdot` because it is specific to the Dashdot application, 
+but you can absolutely create one to manage several services, or one for each service. 
 
-That way :
+So let's transfer the labels from the service configuration file to a file in our Traefik dynamic configuration.
+I personally use a file per service, for example for Dashdot, the configuration will be held in a file _dashdot.yml_ in the dynamic folder :
+
+Note that you need to define a volume to bind Traefik dynamic configuration to the container,
+in addition to the static configuration (simply create a _dynamic_ folder in _/opt/apps/traefik_) :
+
+```bash
+sudo mkdir /opt/apps/traefik/dynamic
+sudo vi /opt/apps/traefik/dynamic/dashdot.yml
+```
+
+Then add the volume in the Traefik service configuration (_docker-compose.yml_) :
+
+```yaml
+volumes:
+  - ./dynamic:/etc/traefik/dynamic:ro
+```
+
+So Traefik will handle every YAML file placed in the _dynamic_ directory.
+
+That's it, the following labels :
 
 ```yaml
     labels:
@@ -4328,7 +4351,7 @@ That way :
       - "traefik.docker.network=traefik-net"
 ```
 
-becomes :
+becomes the following inside _dashdot.yml_ :
 
 ```yaml
 http:
@@ -4348,30 +4371,30 @@ http:
       service: dashdot
       middlewares:
         - vpn-whitelist@docker
-        - dashdot@docker
+        - sablier-dashdot@docker
 ```
 
-As you see, the only thing we added is the `dashdot` **middleware**,
-which defines the strategy to use to respond to any incoming HTTP request when the corresponding container is not running:
+As you see, the only thing we added is the `sablier-dashdot` **middleware** reference,
+which defines the strategy to use to respond to any incoming HTTP request when the corresponding container is not running :
 
-Then add the labels for Dashdot middleware configuration into the `sablier` service configuration (_docker_compose.yml_ file) :
+Then add the labels for the `sablier-dashdot` middleware configuration into the `sablier` service configuration (_docker_compose.yml_ file) :
 
 ```yaml
     labels:
       - "traefik.enable=true"
       # Dashdot
-      - "traefik.http.middlewares.dashdot.plugin.sablier.names=dashdot"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.sablierUrl=http://sablier:10000"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.sessionDuration=5m"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.theme=hacker-terminal"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.displayName=Dashdot"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.refreshFrequency=1s"
-      - "traefik.http.middlewares.dashdot.plugin.sablier.dynamic.showDetails=true"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.names=dashdot"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.sessionDuration=5m"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.dynamic.theme=hacker-terminal"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.dynamic.displayName=Dashdot"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.dynamic.refreshFrequency=1s"
+      - "traefik.http.middlewares.sablier-dashdot.plugin.sablier.dynamic.showDetails=true"
 ```
 
-Add here any other middleware that would need a different configuration for Sablier.
+Add here any other middleware that would need a different configuration for other services.
 
-Basically, it defines a Traefik middleware to configure the Sablier plugin to :
+Basically, it defines a **Traefik middleware** to configure the Sablier plugin to :
 - Provide the name of the service(s) to be checked
 - The URL to Sablier
 - The session duration (will stop the container after that period)
