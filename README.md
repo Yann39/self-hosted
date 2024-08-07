@@ -115,7 +115,7 @@ I started this project in late 2023 as a **home lab**, for learning, the goal wa
 - **Secure** (authentication, SSL/TLS, firewall, ad blocking, DDOS protection, rate limiting, custom DNS resolver, ...)
 - **Lightweight** (runs smoothly with minimal hardware and software requirements)
 - **Container-ready** (isolated, portable, scalable applications)
-- **Accessible** (some services accessible only locally, some only through VPN, some publicly)
+- **Accessible** (some services accessible only locally, some only through VPN, some publicly on the internet)
 - **Supervised** (monitoring, alerting, tracking, backup tools)
 
 These are the tools we are going to run :
@@ -313,7 +313,7 @@ flowchart TB
 Basically all services will be accessible via dedicated subdomains which will point to our local network, either through **dynamic DNS** or through **local DNS records**,
 then a **reverse proxy** will be responsible for routing the requests to the right application running in **Docker** containers.
 
-We make the **ISP upstream DNS** (from **router** configuration) point to the Banana Pi **IP address**,
+We can make the **ISP upstream DNS** (from **router** configuration) point to the Banana Pi **IP address**,
 so that we reroute the entire Internet traffic through **Pi-hole** and thus take advantage of its benefits.
 
 In this example **Traefik** (_traefik.example.com_) and **Pi-Hole** (_pihole.example.com_) are only accessible
@@ -326,7 +326,7 @@ You will find more details on how all this has been implemented later in this gu
 
 <img src="images/logo-banana-pi.svg" alt="Banana Pi logo" height="120"/>
 
-By default, there is no system installed on the Banana Pi.
+By default, there is no **operating system** installed on the Banana Pi.
 We have to install a system either on the **MicroSD** card or on the **eMMC** storage.
 The eMMC storage offers better performance but is limited to **16Gb**, it should be enough for our needs though.
 
@@ -4303,7 +4303,7 @@ flowchart LR
                 end
 
                 TRAEFIK_MIDDLEWARE_REDIRECT --> TRAEFIK_MIDDLEWARE_DASHDOT
-                TRAEFIK_MIDDLEWARE_DASHDOT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
                 TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
                 TRAEFIK_MIDDLEWARE_DASHDOT --> DOCKER_SABLIER_PORT
                 DOCKER_SABLIER_PORT -->|ready/not ready| TRAEFIK_MIDDLEWARE_DASHDOT

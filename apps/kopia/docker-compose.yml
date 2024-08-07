@@ -29,7 +29,7 @@ services:
       - /path/to/data/dir:/data:ro
       # repository location
       - /path/to/repository/dir:/repository
-      # path for browsing mounted snaphots
+      # path for browsing mounted snapshots
       - /path/to/tmp/dir:/tmp:shared
     networks:
       - kopia-net
