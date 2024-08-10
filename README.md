@@ -93,17 +93,20 @@ It uses only **free** and **open source** software and hardware.
     1. [Install Sablier](#install-sablier)
     2. [Install Traefik plugin](#install-traefik-plugin)
     3. [Configure target applications](#configure-target-applications)
-   
+
    </details>
 7. <details>
-   <summary><a href="#contributing">Contributing</a></summary>
+   <summary><a href="#backup">Backup</a></summary>
    </details>
 8. <details>
-   <summary><a href="#acknowledgments">Acknowledgments</a></summary>
+   <summary><a href="#contributing">Contributing</a></summary>
    </details>
 9. <details>
-   <summary><a href="#license">License</a></summary>
+   <summary><a href="#acknowledgments">Acknowledgments</a></summary>
    </details>
+10. <details>
+    <summary><a href="#license">License</a></summary>
+    </details>
 
 # Overview
 
@@ -116,7 +119,7 @@ I started this project in late 2023 as a **home lab**, for learning, the goal wa
 - **Lightweight** (runs smoothly with minimal hardware and software requirements)
 - **Container-ready** (isolated, portable, scalable applications)
 - **Accessible** (some services accessible only locally, some only through VPN, some publicly on the internet)
-- **Supervised** (monitoring, alerting, tracking, backup tools)
+- **Supervised** (monitoring, alerting, tracking, and backup tools)
 
 These are the tools we are going to run :
 
@@ -137,7 +140,7 @@ These are the tools we are going to run :
 |          <img src="images/logo-ackee.png" alt="Ackee logo" height="32"/>          | Ackee          | https://github.com/electerious/Ackee        | Analytics tool that cares about privacy              |
 |         <img src="images/logo-lychee.png" alt="Lychee logo" height="32"/>         | Lychee         | https://github.com/LycheeOrg/Lychee         | Free photo-management tool                           |
 |     <img src="images/logo-phpmyadmin.svg" alt="PhpMyAdmin logo" height="32"/>     | PhpMyAdmin     | https://github.com/phpmyadmin/phpmyadmin    | Web user interface to manage MySQL databases         |
-|          <img src="images/logo-kopia.png" alt="Kopia logo" height="32"/>          | Kopia          | https://github.com/kopia/kopia              | Fast and secure open-source backup/restore tool      |
+|  <img src="images/logo-freefilesync.png" alt="FreeFileSync logo" height="32"/>    | FreeFileSync   | https://github.com/hkneptune/FreeFileSync   | Folder comparison and synchronization software       |
 
 And also some personal applications :
 
@@ -425,7 +428,7 @@ We will install Armbian in the eMMC storage, this setup will offer the best perf
 
 - Plug in the USB-C power cable of the Banana Pi M5 to boot on Armbian in the MicroSD card
 - Put the Armbian image in the Banana Pi MicroSD card storage (through USB key or network or whatever), for example in _/home/me/Documents_
-- Run `fdisk -l` command to identify the **eMMC** path, should be something like _/dev/mmcblk1_
+- Run `fdisk -l` command to identify the **eMMC** path, it should be something like _/dev/mmcblk1_
 - Burn the image to the eMMC storage by running the command :
   ```shell
   sudo dd if=Armbian_23.02.2_Bananapim5_bullseye_current_6.1.11_gnome_desktop.img of=/dev/mmcblk1 bs=10MB
@@ -3031,11 +3034,6 @@ services:
         subtitle: "MySQL database management"
         tag: "tool"
         url: "https://phpmyadmin.example.com"
-      - name: "Kopia"
-        logo: "https://www.myqnap.org/wp-content/uploads/kopia-logo.png"
-        subtitle: "Backup/restore tool"
-        tag: "tool"
-        url: "https://kopia.example.com"
       - name: "Lychee"
         logo: "https://avatars.githubusercontent.com/u/37916028?s=200&v=4"
         subtitle: "Photo management tool"
@@ -4406,6 +4404,29 @@ Basically, it defines a **Traefik middleware** to configure the Sablier plugin t
 Finally, here is how the "hacker-terminal" waiting page looks like while starting the Dashdot container :
 
 <img src="images/screen-sablier-dashdot.png" alt="Sablier starting Dashdot"/>
+
+# Backup
+
+We have so far set up a structure with a folder per stack/container (in _opt/apps_).
+That way each stack definition (Docker Compose file) and volume data is fully contained in that single folder.
+
+Also, thanks to Docker, the system has hardly been modified at all, so there's no need to back it up (like doing entire system image backup).
+
+So, I will simply use a tool from my Windows machine, to copy the _opt/apps_ folder regularly through **SFTP**.
+
+One awesome tool I'm using for years for synchronizing my disks, is named **FreeFileSync**.
+
+<img src="images/logo-freefilesync.png" alt="FreeFileSync logo" height="64"/>
+
+**FreeFileSync** is a **folder comparison** and **synchronization** software that creates and manages backup copies of target files.
+Instead of copying every file every time, FreeFileSync determines the differences between a source and a target folder and transfers only the minimum amount of data needed.
+
+Source and target folders can be **remote** folders (support for **Google Drive** and **FTP/SFTP**).
+
+FreeFileSync is Open Source software, available for Windows, macOS, and Linux.
+
+I will install the Windows version on my home Windows machine, which will be used as client to connect to the Banana Pi board through SFTP.
+**SFTP** (SSH File Transfer Protocol) allows secure file transfer, leveraging SSH for encrypted connections.
 
 # Contributing
 
