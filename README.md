@@ -2643,7 +2643,8 @@ networks:
 
 Things to notice :
 
-- Portainer's data is bound to a **Docker volume** named `portainer-vol`
+- Portainer's data is bound to a **Docker volume** named `portainer-vol` (data will be stored in _/var/lib/docker/volumes_)
+- The Docker socket is mounted from the host machine into the container, as Portainer need it to deal with the Docker API
 - It uses Traefik **labels** to :
     - create a **service** which will point to our container application running on port `9000`
     - create an HTTP **router** that will match `portainer.example.com` URL on our `websecure` **entrypoint** to point to our service
@@ -3312,7 +3313,7 @@ networks:
 
 Things to notice :
 
-- Uptime Kuma's data is bound to a **Docker volume** named `uptime-kuma-vol`
+- Uptime Kuma's data is bound to a **Docker volume** named `uptime-kuma-vol` (data will be stored in _/var/lib/docker/volumes_)
 - It uses Traefik **labels** to :
     - create a **service** which will point to our container application running on port `3001`
     - create an HTTP **router** that will match `uptime-kuma.example.com` URL on our `websecure` **entrypoint** to point to our service
@@ -3671,7 +3672,7 @@ networks:
 
 Things to notice :
 
-- Lychee's MariaDB data is bound to a **Docker volume** named `lychee-db-vol`
+- Lychee's MariaDB data is bound to a **Docker volume** named `lychee-db-vol` (data will be stored in _/var/lib/docker/volumes_)
 - We added some volumes, so we have access to some data locally, like uploaded images
 - We define some environment variables required by the application (like application admin credentials, database credentials, timezone, etc.)
 - It uses Traefik **labels** to :
@@ -3931,7 +3932,7 @@ Here we define 3 services :
     - It will run by default on port `9000`
 - `mariadb` : The MariaDB database that will hold the application data
     - It uses our _.env_ file to retrieve environment variables values for database connection
-    - It defines a named volume `defrag-life-db-vol` that will hold the database data
+    - It defines a named volume `defrag-life-db-vol` that will hold the database data (volume data will be stored in _/var/lib/docker/volumes_)
     - It will run by default on port `3306`
 
 All services will run in a `defrag-life-net` **network**, but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered,
@@ -4407,16 +4408,30 @@ Finally, here is how the "hacker-terminal" waiting page looks like while startin
 
 # Backup
 
-We have so far set up a structure with a folder per stack/container (in _opt/apps_).
-That way each stack definition (Docker Compose file) and volume data is fully contained in that single folder.
+We have so far set up a structure with a folder per stack/container (in _/opt/apps_).
+That way each stack definition (Docker Compose file) and bind mount data is fully contained in that single folder.
 
-Also, thanks to Docker, the system has hardly been modified at all, so there's no need to back it up (like doing entire system image backup).
+The only exception are **named volumes**, which stores data in the _/var/lib/docker/volumes_ directory.
+This includes the databases of some applications, which could also be backed up separately using the tool associated with the database management system.
 
-So, I will simply use a tool from my Windows machine, to copy the _opt/apps_ folder regularly through **SFTP**.
+This is the only data that really concerns us, thanks to Docker, the system has hardly been modified at all, so there's no need to back it up completely
+(like doing entire system image backup).
 
-One awesome tool I'm using for years for synchronizing my disks, is named **FreeFileSync**.
+So there are three things we have to worry about in terms of backup :
 
-<img src="images/logo-freefilesync.png" alt="FreeFileSync logo" height="64"/>
+- the content of the _/opt/apps_ directory, holding services configuration and containers bound data
+- the content of the _/var/lib/docker/volumes_, holding the Docker container named volumes data
+- the databases (i.e. MySQL for Defrag-Life website, MongoDB for Ackee application, ...)
+
+Later we can even place volume backups and database exports in the _/opt/apps_ directory so that we can back up everything in one place easily.
+
+## Files
+
+<img src="images/logo-freefilesync.svg" alt="FreeFileSync logo" height="64"/>
+
+I will simply use a tool from my Windows machine, to copy the _/opt/apps_ folder regularly through **SFTP**.
+
+One awesome tool which I've been using for years for synchronizing my disks, is named **FreeFileSync**.
 
 **FreeFileSync** is a **folder comparison** and **synchronization** software that creates and manages backup copies of target files.
 Instead of copying every file every time, FreeFileSync determines the differences between a source and a target folder and transfers only the minimum amount of data needed.
@@ -4425,8 +4440,104 @@ Source and target folders can be **remote** folders (support for **Google Drive*
 
 FreeFileSync is Open Source software, available for Windows, macOS, and Linux.
 
-I will install the Windows version on my home Windows machine, which will be used as client to connect to the Banana Pi board through SFTP.
-**SFTP** (SSH File Transfer Protocol) allows secure file transfer, leveraging SSH for encrypted connections.
+I will install the Windows version on my home Windows machine, which will be used as client to connect to the Banana Pi board through SFTP
+(SSH File Transfer Protocol, allows secure file transfer trough SSH encrypted connections).
+
+To do a mirror synchronization :
+
+1. Download the software for your operating system at https://freefilesync.org/
+2. Install and start it
+3. Choose left and right folders :
+
+   <img src="images/freefilesync-choose-folders.png" alt="FreeFileSync choose folders"/>
+
+   Click the cloud icon to connect to the bananapi board via SFTP and select the _/opt/apps_ folder
+
+4. Compare them :
+
+   <img src="images/freefilesync-compare.png" alt="FreeFileSync compare folders"/>
+   
+5. Adapt synchronization settings if needed :
+   
+   <img src="images/freefilesync-settings.png" alt="FreeFileSync synchronization settings"/>
+   
+6. Start synchronization :
+  
+   <img src="images/freefilesync-sync.png" alt="FreeFileSync start synchronization"/>
+
+Refer to the documentation and tutorials on the software's website for more information.
+
+## Volumes
+
+We can back up Docker volumes using `docker run` and `tar` command.
+This method involves creating a temporary container that mounts the named volume and then using tar to archive the content.
+
+For example to back up the Portainer volume `portainer-vol` to _/opt/apps/portainer_ :
+
+```bash
+sudo docker run --rm --volumes-from portainer -v /opt/apps/portainer:/backup busybox tar cvf /backup/portainer-vol-backup.tar /data
+```
+
+- `--rm` will remove the container when it exits
+- `--volumes-from portainer` will attach to the volumes shared by the `portainer` container
+- `-v /opt/apps/portainer:/backup` bind mount the _/opt/apps/portainer_ directory into the container to write the tar file to
+- `busybox` is a light image good for quick maintenance
+- `tar cvf /backup/portainer-vol-backup.tar /data` will create an uncompressed tar file of all the files in the /data directory
+
+This will create a _portainer-vol-backup.tar_ archive in the _/opt/apps/portainer_ directory.
+
+> [!IMPORTANT]
+> Some services may need to be stopped during backup or restore to ensure data consistency
+
+To restore the volume :
+
+1. Create a new container :
+
+   ```bash
+   sudo docker create -v /data --name newcontainer busybox /bin/bash
+   ```
+
+2. Untar the backup files into the new container volume :
+ 
+   ```bash
+   sudo docker run --rm --volumes-from newcontainer -v /opt/apps/portainer:/backup busybox bash -c "cd /data && tar xvf /backup/portainer-vol-backup.tar --strip 1"
+   ```
+
+## Databases
+
+When applicable we can also back up the database directly.
+
+### MySQL
+
+For **MySQL**, we can use the **mysqldump** utility.
+
+To export data :
+
+```shell
+mysqldump --complete-insert --skip-comments --skip-tz-utc --skip-opt --hex-blob --no-set-names --set-charset --column-statistics=0 --set-gtid-purged=OFF -P 3306 -h localhost -u <user> -p <dbname> > db_backup.sql
+```
+
+If you don't have the **mysqldump** utility installed on your environment, you can use the one embedded in the MySQL container :
+
+```shell
+docker exec <container_id> /usr/bin/mysqldump --no-create-info --complete-insert --skip-add-locks --skip-comments --skip-tz-utc --skip-opt --hex-blob --no-set-names --set-charset --column-statistics=0 --set-gtid-purged=OFF -P 6033 -h prdmysql.unil.ch -u <user> --password=<password_here> <dbname> > db_backup.sql
+```
+
+> [!IMPORTANT]
+> Again there is a slight chance that a database gets inconsistent when backing up hot files, so prefer to stop services before proceeding,
+> but in a home lab with minimal load this is usually not an issue
+
+To import data :
+
+```shell
+mysql -P 3306 -h localhost -u <user> -p <dbname> < db_backup.sql
+```
+
+Or again if you don't have the **mysqldump** utility installed on your environment, you can use the one from the MySQL container :
+
+```shell
+docker exec -i <container_id> /usr/bin/mysql -P 3306 -h localhost -u <user> --password=<password_here> <dbname> < db_backup.sql
+```
 
 # Contributing
 
