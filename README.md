@@ -97,6 +97,11 @@ It uses only **free** and **open source** software and hardware.
    </details>
 7. <details>
    <summary><a href="#backup">Backup</a></summary>
+
+    1. [Files](#files)
+    2. [Volumes](#volumes)
+    3. [Databases](#databases)
+
    </details>
 8. <details>
    <summary><a href="#contributing">Contributing</a></summary>
@@ -192,6 +197,7 @@ flowchart TB
     style CONTAINER_ENGINE fill: #664343
     style TRAEFIK_CONTAINER fill: #663535
     style PIHOLE_CONTAINER fill: #663535
+    style SABLIER_CONTAINER fill: #663535
     style UNBOUND_CONTAINER fill: #663535
     style MYAPP_CONTAINER fill: #663535
     style WIREGUARD_CONTAINER fill: #663535
@@ -215,6 +221,7 @@ flowchart TB
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
     DOCKER_UNBOUND_PORT53{{53/udp}}
+    DOCKER_SABLIER_PORT10000{{10000/tcp}}
     TRAEFIK_ROUTER_MYAPP(myapp\n.example.com)
     TRAEFIK_ROUTER_PIHOLE(pihole\n.example.com)
     TRAEFIK_ROUTER_TRAEFIK(traefik\n.example.com)
@@ -241,14 +248,15 @@ flowchart TB
 
     subgraph INTERNET_SERVICE_PROVIDER[INTERNET SERVICE PROVIDER]
         DDNS --->|DynDNS| ROUTER
-        ROUTER --> ROUTER_PORT443
         ROUTER --> ROUTER_PORT80
+        ROUTER --> ROUTER_PORT443
         ROUTER --> ROUTER_PORT51820
         DNS_ISP
     end
 
     subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
         subgraph CONTAINER_ENGINE[DOCKER]
+
             subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
                 subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
                     TRAEFIK_ROUTER_TRAEFIK
@@ -258,11 +266,17 @@ flowchart TB
                 subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARE]
                     REDIRECT(HTTPS redirect)
                     IP_WHITELISTING(IP whitelist)
+                    SABLIER(Sablier dynamic)
                     BASIC_AUTH(Basic auth)
                 end
                 DOCKER_TRAEFIK_PORT80
                 DOCKER_TRAEFIK_PORT443
                 DOCKER_TRAEFIK_PORT8080
+            end
+
+            subgraph SABLIER_CONTAINER[SABLIER CONTAINER]
+                DOCKER_SABLIER_PORT10000
+                WAITING_PAGE(Waiting page)
             end
 
             subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
@@ -296,7 +310,7 @@ flowchart TB
     ROUTER_PORT51820 -->|port forward| DOCKER_WIREGUARD_PORT51820
     ROUTER_PORT443 ------>|port forward| DOCKER_TRAEFIK_PORT443
     ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
-    DNS_ISP ---->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
+    DNS_ISP -->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
     PIHOLE_DNS_TRAEFIK --->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
     PIHOLE_DNS_PIHOLE --->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
     DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
@@ -306,11 +320,15 @@ flowchart TB
     TRAEFIK_ROUTER_TRAEFIK -->|Dashboard / API| REDIRECT
     IP_WHITELISTING --> BASIC_AUTH
     IP_WHITELISTING --> DOCKER_PIHOLE_PORT80
+    REDIRECT ---> SABLIER
+    SABLIER <-..->|return status| DOCKER_SABLIER_PORT10000
+    SABLIER --->|not ready| WAITING_PAGE
+    SABLIER --->|ready| DOCKER_MYAPP_PORT5000
     REDIRECT --> IP_WHITELISTING
-    REDIRECT ----> DOCKER_MYAPP_PORT5000
+    DOCKER_SABLIER_PORT10000 <-.->|check status| DOCKER_MYAPP_PORT5000
     BASIC_AUTH --> DOCKER_TRAEFIK_PORT8080
     DOCKER_PIHOLE_DNS ---> DOCKER_UNBOUND_PORT53
-    UNBOUND_CONTAINER <--> ROOT_DNS_SERVERS
+    UNBOUND_CONTAINER <----> ROOT_DNS_SERVERS
 ```
 
 Basically all services will be accessible via dedicated subdomains which will point to our local network, either through **dynamic DNS** or through **local DNS records**,
@@ -321,7 +339,9 @@ so that we reroute the entire Internet traffic through **Pi-hole** and thus take
 
 In this example **Traefik** (_traefik.example.com_) and **Pi-Hole** (_pihole.example.com_) are only accessible
 through VPN and from the local network thanks to local DNS records and IP whitelisting,
-while **Myapp** (_myapp.example.com_) is also accessible from the internet publicly.
+while **MyApp** (_myapp.example.com_) is also accessible from the internet publicly.
+
+The Traefik dashboard is protected by **basic authentication**, and the MyApp container is started/stopped on-demand through **Sablier**.
 
 You will find more details on how all this has been implemented later in this guide.
 
@@ -1030,6 +1050,9 @@ flowchart LR
 It handles HTTP to HTTPS redirection, IP whitelisting and basic authentication through custom **middlewares**.
 In this example `myapp1` is accessible from the internet, `myapp2` is accessible only through VPN,
 and Traefik (dashboard and APIs) is accessible only through VPN after basic authentication.
+
+I've deliberately left out **Sablier** for the moment, to keep things simple, but basically this would simply add a middleware that checks the state of the application,
+in order to temporarily display a waiting page while not ready, refer to [Scale to zero with Sablier](#scale-to-zero-with-sablier) for more information.
 
 ### Installation
 
@@ -4154,16 +4177,18 @@ flowchart LR
             TRAEFIK_MIDDLEWARE_APP
         end
 
-        TRAEFIK_MIDDLEWARE_APP --> DOCKER_SABLIER_PORT
-        DOCKER_SABLIER_PORT -->|"ready/not ready"| TRAEFIK_MIDDLEWARE_APP
+        TRAEFIK_MIDDLEWARE_APP -.->|request session status| DOCKER_SABLIER_PORT
+        DOCKER_SABLIER_PORT -.->|"return status header"| TRAEFIK_MIDDLEWARE_APP
         TRAEFIK_MIDDLEWARE_APP -->|"ready"| DOCKER_APP_PORT
         TRAEFIK_MIDDLEWARE_APP -->|"not ready"| WAITING_PAGE
-        DOCKER_SABLIER_PORT <-.->|"check status"| DOCKER_APP_PORT
+        DOCKER_APP_PORT -.->|return instance status| DOCKER_SABLIER_PORT
+        DOCKER_SABLIER_PORT -.->|"check instance status"| DOCKER_APP_PORT
     end
 ```
 
 When a request arrives, a **Traefik middleware** is responsible to contact Sablier to know if the target container is ready or not.
 Sablier asks for the container status to the **Docker provider**, then return the result to the proxy, to either serve the waiting page or redirect to the application.
+It is done through a `X-Sablier-Status` request header value.
 
 It continuously checks for instance status until it is ready, and will intend to start the underlying container if not started,
 or shut it down if it has reached the configured period of inactivity.
@@ -4304,8 +4329,8 @@ flowchart LR
                 TRAEFIK_MIDDLEWARE_REDIRECT --> TRAEFIK_MIDDLEWARE_DASHDOT
                 TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
                 TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
-                TRAEFIK_MIDDLEWARE_DASHDOT --> DOCKER_SABLIER_PORT
-                DOCKER_SABLIER_PORT -->|ready/not ready| TRAEFIK_MIDDLEWARE_DASHDOT
+                TRAEFIK_MIDDLEWARE_DASHDOT -->|check status| DOCKER_SABLIER_PORT
+                DOCKER_SABLIER_PORT -->|return status| TRAEFIK_MIDDLEWARE_DASHDOT
                 TRAEFIK_MIDDLEWARE_DASHDOT -->|ready| DOCKER_DASHDOT_PORT
                 TRAEFIK_MIDDLEWARE_DASHDOT -->|not ready| WAITING_PAGE
             end
@@ -4402,9 +4427,9 @@ Basically, it defines a **Traefik middleware** to configure the Sablier plugin t
 - The refresh frequency of the waiting page
 - Show the loading instances details
 
-Finally, here is how the "hacker-terminal" waiting page looks like while starting the Dashdot container :
+Here is how the "hacker-terminal" waiting page looks like while starting the Dashdot container :
 
-<img src="images/screen-sablier-dashdot.png" alt="Sablier starting Dashdot"/>
+<img src="images/sablier-dashdot-loading.gif" alt="Sablier starting Dashdot"/>
 
 # Backup
 
@@ -4470,21 +4495,24 @@ Refer to the documentation and tutorials on the software's website for more info
 ## Volumes
 
 We can back up Docker volumes using `docker run` and `tar` command.
-This method involves creating a temporary container that mounts the named volume and then using tar to archive the content.
+This method involves creating a temporary container that mounts the named volume we want to back up, then using tar to produce an archive of the volume content.
 
 For example to back up the Portainer volume `portainer-vol` to _/opt/apps/portainer_ :
 
 ```bash
-sudo docker run --rm --volumes-from portainer -v /opt/apps/portainer:/backup busybox tar cvf /backup/portainer-vol-backup.tar /data
+sudo docker run --rm --mount source=portainer-vol,target=/mybackup -v $(pwd):/backup busybox tar cvf /backup/portainer-vol-backup.tar /mybackup
 ```
 
 - `--rm` will remove the container when it exits
-- `--volumes-from portainer` will attach to the volumes shared by the `portainer` container
-- `-v /opt/apps/portainer:/backup` bind mount the _/opt/apps/portainer_ directory into the container to write the tar file to
-- `busybox` is a light image good for quick maintenance
-- `tar cvf /backup/portainer-vol-backup.tar /data` will create an uncompressed tar file of all the files in the /data directory
+- `--mount source=portainer-vol,target=/mybackup` will mount the `portainer-vol` volume to the container mount point `/mybackup`
+- `-v $(pwd):/backup` bind mount the current directory into the container to write the tar file to
+- `busybox` is a light image of a lightweight Linux distribution with basic Unix utilities, good for that kind of quick maintenance
+- `tar cvf /backup/portainer-vol-backup.tar /mybackup` will create an uncompressed tar file of all the files in the /mybackup directory
 
-This will create a _portainer-vol-backup.tar_ archive in the _/opt/apps/portainer_ directory.
+This will create a _portainer-vol-backup.tar_ archive in the current directory.
+
+Feel free to move it to the _/opt/apps/portainer_ directory if you want to back it up along with that directory when using FreeFileSync (see [Files](#files)).
+Or simply move the backup file to an external server.
 
 > [!IMPORTANT]
 > Some services may need to be stopped during backup or restore to ensure data consistency
@@ -4500,8 +4528,21 @@ To restore the volume :
 2. Untar the backup files into the new container volume :
  
    ```bash
-   sudo docker run --rm --volumes-from newcontainer -v /opt/apps/portainer:/backup busybox bash -c "cd /data && tar xvf /backup/portainer-vol-backup.tar --strip 1"
+   sudo docker run --rm --volumes-from newcontainer -v $(pwd):/backup busybox tar -xvf /backup/portainer-vol-backup.tar --strip 1 -C /data
    ```
+
+- `--rm` will remove the container when it exits
+- `--volumes-from newcontainer` mounts all the volumes from the `newcontainer` container into the new container being started
+- `-v $(pwd):/backup` bind mount the current directory into the container to write the tar file to
+- `busybox` is a light image of a lightweight Linux distribution with basic Unix utilities, good for that kind of quick maintenance
+- `tar xvf /backup/portainer-vol-backup.tar --strip 1 -C /data` will extract the files from the tar archive in the `/data` directory of the container's filesystem
+(without the parent directory thanks to `--strip 1`)
+
+You can compare the 2 volumes content to check that everything has been copied correctly :
+
+```bash
+sudo diff -qr /var/lib/docker/volumes/portainer-vol /var/lib/docker/volumes/0862be139e8b9e8137c02005739071d2338fd04f6090b8a89d6b5012fc5fb33a
+```
 
 ## Databases
 
@@ -4509,7 +4550,7 @@ When applicable we can also back up the database directly.
 
 ### MySQL
 
-For **MySQL**, we can use the **mysqldump** utility.
+For **MySQL**, we can use **mysqldump**, a command-line utility that is used to generate or restore logical backups of MySQL databases.
 
 To export data :
 
