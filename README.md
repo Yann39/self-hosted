@@ -145,7 +145,7 @@ These are the tools we are going to run :
 |          <img src="images/logo-ackee.png" alt="Ackee logo" height="32"/>          | Ackee          | https://github.com/electerious/Ackee        | Analytics tool that cares about privacy              |
 |         <img src="images/logo-lychee.png" alt="Lychee logo" height="32"/>         | Lychee         | https://github.com/LycheeOrg/Lychee         | Free photo-management tool                           |
 |     <img src="images/logo-phpmyadmin.svg" alt="PhpMyAdmin logo" height="32"/>     | PhpMyAdmin     | https://github.com/phpmyadmin/phpmyadmin    | Web user interface to manage MySQL databases         |
-|  <img src="images/logo-freefilesync.png" alt="FreeFileSync logo" height="32"/>    | FreeFileSync   | https://github.com/hkneptune/FreeFileSync   | Folder comparison and synchronization software       |
+|   <img src="images/logo-freefilesync.png" alt="FreeFileSync logo" height="32"/>   | FreeFileSync   | https://github.com/hkneptune/FreeFileSync   | Folder comparison and synchronization software       |
 
 And also some personal applications :
 
@@ -341,7 +341,7 @@ In this example **Traefik** (_traefik.example.com_) and **Pi-Hole** (_pihole.exa
 through VPN and from the local network thanks to local DNS records and IP whitelisting,
 while **MyApp** (_myapp.example.com_) is also accessible from the internet publicly.
 
-The Traefik dashboard is protected by **basic authentication**, and the MyApp container is started/stopped on-demand through **Sablier**.
+The Traefik dashboard is protected by **basic authentication**, and the _MyApp_ container is started/stopped on-demand through **Sablier**.
 
 You will find more details on how all this has been implemented later in this guide.
 
@@ -490,7 +490,7 @@ Enter your password then you are ready to go !
 
 <img src="images/screen-ssh-bpi.png" alt="Bananapi header after SSH connection"/>
 
-You can also use your preferred **SSH client**.
+You can also use your preferred **SSH client** (on Windows I usually use **MobaXterm**).
 
 Unless you want to be able to do some operations from outside your local network, there is no need to open the SSH port to the internet.
 If you do so consider using it behind a VPN (even if SSH itself is very secure).
@@ -4494,10 +4494,12 @@ Refer to the documentation and tutorials on the software's website for more info
 
 ## Volumes
 
+### Backup
+
 We can back up Docker volumes using `docker run` and `tar` command.
 This method involves creating a temporary container that mounts the named volume we want to back up, then using tar to produce an archive of the volume content.
 
-For example to back up the Portainer volume `portainer-vol` to _/opt/apps/portainer_ :
+For example to back up the Portainer volume `portainer-vol` to the current directory :
 
 ```bash
 sudo docker run --rm --mount source=portainer-vol,target=/mybackup -v $(pwd):/backup busybox tar cvf /backup/portainer-vol-backup.tar /mybackup
@@ -4505,21 +4507,24 @@ sudo docker run --rm --mount source=portainer-vol,target=/mybackup -v $(pwd):/ba
 
 - `--rm` will remove the container when it exits
 - `--mount source=portainer-vol,target=/mybackup` will mount the `portainer-vol` volume to the container mount point `/mybackup`
-- `-v $(pwd):/backup` bind mount the current directory into the container to write the tar file to
-- `busybox` is a light image of a lightweight Linux distribution with basic Unix utilities, good for that kind of quick maintenance
-- `tar cvf /backup/portainer-vol-backup.tar /mybackup` will create an uncompressed tar file of all the files in the /mybackup directory
+- `-v $(pwd):/backup` bind mount the current directory into the container's `backup` directory to write the tar file to
+- `busybox` is an image of a lightweight Linux distribution with basic Unix utilities, good for that kind of quick maintenance
+- `tar cvf /backup/portainer-vol-backup.tar /mybackup` will create an uncompressed tar file of all the files in the `/mybackup` directory
 
 This will create a _portainer-vol-backup.tar_ archive in the current directory.
+The tar will contain a _mybackup_ directory containing all volume data.
 
-Feel free to move it to the _/opt/apps/portainer_ directory if you want to back it up along with that directory when using FreeFileSync (see [Files](#files)).
+Then feel free to move it to the _/opt/apps/portainer_ directory if you want to back it up along with that directory when using FreeFileSync (see [Files](#files)).
 Or simply move the backup file to an external server.
 
 > [!IMPORTANT]
 > Some services may need to be stopped during backup or restore to ensure data consistency
 
+### Restore
+
 To restore the volume :
 
-1. Create a new container :
+1. Create a new container (this represents the container in which you wish to restore the backup) :
 
    ```bash
    sudo docker create -v /data --name newcontainer busybox /bin/bash
@@ -4533,12 +4538,12 @@ To restore the volume :
 
 - `--rm` will remove the container when it exits
 - `--volumes-from newcontainer` mounts all the volumes from the `newcontainer` container into the new container being started
-- `-v $(pwd):/backup` bind mount the current directory into the container to write the tar file to
-- `busybox` is a light image of a lightweight Linux distribution with basic Unix utilities, good for that kind of quick maintenance
+- `-v $(pwd):/backup` bind mount the current directory into the container's `/backup` directory to write the tar file to
+- `busybox` is an image of a lightweight Linux distribution with basic Unix utilities, good for that kind of quick maintenance
 - `tar xvf /backup/portainer-vol-backup.tar --strip 1 -C /data` will extract the files from the tar archive in the `/data` directory of the container's filesystem
 (without the parent directory thanks to `--strip 1`)
 
-You can compare the 2 volumes content to check that everything has been copied correctly :
+Finally, you can compare the 2 volumes content to check that everything has been copied correctly :
 
 ```bash
 sudo diff -qr /var/lib/docker/volumes/portainer-vol /var/lib/docker/volumes/0862be139e8b9e8137c02005739071d2338fd04f6090b8a89d6b5012fc5fb33a
@@ -4546,7 +4551,7 @@ sudo diff -qr /var/lib/docker/volumes/portainer-vol /var/lib/docker/volumes/0862
 
 ## Databases
 
-When applicable we can also back up the database directly.
+When applicable, we can also back up the database directly.
 
 ### MySQL
 
@@ -4561,7 +4566,7 @@ mysqldump --complete-insert --skip-comments --skip-tz-utc --skip-opt --hex-blob 
 If you don't have the **mysqldump** utility installed on your environment, you can use the one embedded in the MySQL container :
 
 ```shell
-docker exec <container_id> /usr/bin/mysqldump --no-create-info --complete-insert --skip-add-locks --skip-comments --skip-tz-utc --skip-opt --hex-blob --no-set-names --set-charset --column-statistics=0 --set-gtid-purged=OFF -P 6033 -h prdmysql.unil.ch -u <user> --password=<password_here> <dbname> > db_backup.sql
+docker exec <container_id> /usr/bin/mysqldump --complete-insert --skip-comments --skip-tz-utc --skip-opt --hex-blob --no-set-names --set-charset --column-statistics=0 --set-gtid-purged=OFF -P 6033 -h prdmysql.unil.ch -u <user> --password=<password_here> <dbname> > db_backup.sql
 ```
 
 > [!IMPORTANT]

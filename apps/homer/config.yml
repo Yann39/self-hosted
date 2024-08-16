@@ -10,6 +10,8 @@
 header: false
 footer: '<p>Created with <span class="has-text-danger">❤️</span> with <a href="https://bulma.io/">bulma</a>, <a href="https://vuejs.org/">vuejs</a> & <a href="https://fontawesome.com/">font awesome</a> // Fork me on <a href="https://github.com/bastienwirtz/homer"><i class="fab fa-github-alt"></i></a></p>' # set false if you want to hide it.
 
+columns: "3"
+
 # Optional theme customization
 theme: default
 colors:
@@ -28,8 +30,8 @@ colors:
     link-hover: "#363636"
   dark:
     highlight-primary: "#3367d6"
-    highlight-secondary: "#515185"
-    highlight-hover: "#50668b"
+    highlight-secondary: "#2b2b2b"
+    highlight-hover: "#131313"
     background: "#131313"
     card-background: "#2b2b2b"
     text: "#eaeaea"
@@ -63,6 +65,11 @@ colors:
   #- name: "another page!"
   #  icon: "fas fa-file-alt"
   #  url: "#additional-page"
+links:
+  - name: "GitHub"
+    icon: "fab fa-github"
+    url: "https://github.com/Yann39"
+    target: "_blank"
 
 # Services
 # First level array represent a group.
@@ -86,11 +93,6 @@ services:
         subtitle: "Container management platform"
         tag: "tool"
         url: "https://portainer.example.com"
-      - name: "Uptime Kuma"
-        logo: "https://uptime.kuma.pet/img/icon.svg"
-        subtitle: "Application monitoring tool"
-        tag: "monitoring"
-        url: "https://kuma.example.com/status/dashboard"
       - name: "Wireguard UI"
         logo: "https://seeklogo.com/images/W/wireguard-logo-259B3D155A-seeklogo.com.png"
         subtitle: "Simple yet fast and modern VPN"
@@ -101,19 +103,16 @@ services:
         subtitle: "Network-wide ad blocking"
         tag: "network"
         url: "https://pihole.example.com/admin"
+      - name: "Uptime Kuma"
+        logo: "https://uptime.kuma.pet/img/icon.svg"
+        subtitle: "Application monitoring tool"
+        tag: "monitoring"
+        url: "https://kuma.example.com/status/dashboard"
       - name: "Ackee"
         logo: "https://s.electerious.com/images/ackee/icon.png"
         subtitle: "Analytics tool that cares about privacy"
         tag: "analytics"
         url: "https://ackee.example.com"
-      - name: "Sablier"
-        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Circle-icons-hourglass.svg/240px-Circle-icons-hourglass.svg.png"
-        subtitle: "Workload scaling on demand"
-        tag: "tool"
-      - name: "Unbound"
-        logo: "https://i.imgur.com/cnsNS1O.png"
-        subtitle: "Validating, recursive, and caching DNS resolver"
-        tag: "network"
       - name: "PhpMyAdmin"
         logo: "https://icon-library.com/images/phpmyadmin-icon/phpmyadmin-icon-24.jpg"
         subtitle: "MySQL database management"
