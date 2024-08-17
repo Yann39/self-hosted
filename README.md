@@ -190,21 +190,21 @@ some only via VPN, and others to anyone from the internet.
 
 ```mermaid
 flowchart TB
-    style HOSTING_PROVIDER fill: #4d683b
-    style DDNS_PROVIDER fill: #69587b
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
-    style TRAEFIK_CONTAINER fill: #663535
-    style PIHOLE_CONTAINER fill: #663535
-    style SABLIER_CONTAINER fill: #663535
-    style UNBOUND_CONTAINER fill: #663535
-    style MYAPP_CONTAINER fill: #663535
-    style WIREGUARD_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style VPN_CLIENT fill: #105040
-    style PIHOLE_DNS_RECORDS fill: #806030
+    style HOSTING_PROVIDER fill:#4d683b,color:#fff
+    style DDNS_PROVIDER fill:#69587b,color:#fff
+    style INTERNET_SERVICE_PROVIDER fill:#205566,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665151,color:#fff
+    style CONTAINER_ENGINE fill:#664343,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style PIHOLE_CONTAINER fill:#663535,color:#fff
+    style SABLIER_CONTAINER fill:#663535,color:#fff
+    style UNBOUND_CONTAINER fill:#663535,color:#fff
+    style MYAPP_CONTAINER fill:#663535,color:#fff
+    style WIREGUARD_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style VPN_CLIENT fill:#105040,color:#fff
+    style PIHOLE_DNS_RECORDS fill:#806030,color:#fff
     DOMAIN(example.com)
     SUBDOMAIN_WIREGUARD(wireguard.example.com)
     SUBDOMAIN_MYAPP(myapp.example.com)
@@ -689,12 +689,12 @@ Here is an overview of the route for each case, when a client request _myapp.exa
 
 ```mermaid
 flowchart LR
-    style HOSTING_PROVIDER fill: #4d683b
-    style DDNS_PROVIDER fill: #69587b
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style APPLICATION fill: #663535
-    style SINGLE_BOARD_COMPUTER fill: #665151
+    style HOSTING_PROVIDER fill:#4d683b,color:#fff
+    style DDNS_PROVIDER fill:#69587b,color:#fff
+    style INTERNET_SERVICE_PROVIDER fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style APPLICATION fill:#663535,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665151,color:#fff
     CLIENT((Client))
     SUBDOMAIN_MYAPP(myapp\n.example.com)
     DDNS(myddns\n.ddns.net)
@@ -738,12 +738,12 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    style VPN fill: #4d683b
-    style TRAEFIK_CONTAINER fill: #663535
-    style PI_HOLE fill: #663535
-    style APPLICATION fill: #663535
-    style WIREGUARD fill: #663535
-    style SINGLE_BOARD_COMPUTER fill: #665151
+    style VPN fill:#4d683b,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style PI_HOLE fill:#663535,color:#fff
+    style APPLICATION fill:#663535,color:#fff
+    style WIREGUARD fill:#663535,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665151,color:#fff
     CLIENT((Client))
     VPN_CLIENT(DNS)
     VPN_ENDPOINT(Endpoint)
@@ -788,11 +788,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style PI_HOLE fill: #663535
-    style APPLICATION fill: #663535
-    style SINGLE_BOARD_COMPUTER fill: #665151
+    style INTERNET_SERVICE_PROVIDER fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style PI_HOLE fill:#663535,color:#fff
+    style APPLICATION fill:#663535,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665151,color:#fff
     CLIENT((Client))
     ISP_DNS(DNS)
     PIHOLE_DNS_MYAPP(myapp\n.example.com)
@@ -986,14 +986,14 @@ Here is an overview of the network flow on our setup :
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style MYAPP1_CONTAINER fill: #663535
-    style MYAPP2_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style SINGLE_BOARD_COMPUTER fill: #665555
-    style CONTAINER_ENGINE fill: #664545
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style MYAPP1_CONTAINER fill:#663535,color:#fff
+    style MYAPP2_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
     INCOMING_REQUEST((INCOMING\nREQUEST))
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
@@ -1364,18 +1364,18 @@ So the idea is that every client in any network can use the VPN to reach our app
 
 ```mermaid
 flowchart TB
-    style WINDOWS11 fill: #205566
-    style LAPTOP fill: #205566
-    style MOBILE fill: #205566
-    style MACOS fill: #205566
-    style WIREGUARD_SERVER fill: #764545
-    style PIHOLE fill: #663535
-    style UNBOUND fill: #562525
-    style INTERNET fill: #4d683b
-    style HOME_NETWORK fill: #263555
-    style 5G_NETWORK fill: #263555
-    style WORK_NETWORK fill: #263555
-    style BANANA_PI fill: #504255
+    style WINDOWS11 fill:#205566,color:#fff
+    style LAPTOP fill:#205566,color:#fff
+    style MOBILE fill:#205566,color:#fff
+    style MACOS fill:#205566,color:#fff
+    style WIREGUARD_SERVER fill:#764545,color:#fff
+    style PIHOLE fill:#663535,color:#fff
+    style UNBOUND fill:#562525,color:#fff
+    style INTERNET fill:#4d683b,color:#fff
+    style HOME_NETWORK fill:#263555,color:#fff
+    style 5G_NETWORK fill:#263555,color:#fff
+    style WORK_NETWORK fill:#263555,color:#fff
+    style BANANA_PI fill:#504255,color:#fff
     WINDOWS11(Peer 1 \n Home PC - Windows 11)
     LAPTOP(Peer 2 \n Home laptop - Ubuntu 22)
     MOBILE(Peer 3 \n Phone - Android 14)
@@ -2158,17 +2158,17 @@ From local network
 
 ```mermaid
 flowchart TB
-    style HOSTING_PROVIDER fill: #4d683b
-    style DDNS_PROVIDER fill: #69587b
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
-    style TRAEFIK_CONTAINER fill: #663535
-    style PIHOLE_CONTAINER fill: #663535
-    style UNBOUND_CONTAINER fill: #663535
-    style MYAPP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
+    style HOSTING_PROVIDER fill:#4d683b,color:#fff
+    style DDNS_PROVIDER fill:#69587b,color:#fff
+    style INTERNET_SERVICE_PROVIDER fill:#205566,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665151,color:#fff
+    style CONTAINER_ENGINE fill:#664343,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style PIHOLE_CONTAINER fill:#663535,color:#fff
+    style UNBOUND_CONTAINER fill:#663535,color:#fff
+    style MYAPP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     DOMAIN(example.com)
     SUBDOMAIN_MYAPP(myapp.example.com)
     DDNS(myddns.ddns.net)
@@ -2277,17 +2277,17 @@ From outside local network
 
 ```mermaid
 flowchart TB
-    style HOSTING_PROVIDER fill: #4d683b
-    style DDNS_PROVIDER fill: #69587b
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style INTERNET_SERVICE_PROVIDER2 fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
-    style TRAEFIK_CONTAINER fill: #663535
-    style MYAPP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style DNS_RESOLVER fill: #805060
+    style HOSTING_PROVIDER fill:#4d683b,color:#fff
+    style DDNS_PROVIDER fill:#69587b,color:#fff
+    style INTERNET_SERVICE_PROVIDER fill:#205566,color:#fff
+    style INTERNET_SERVICE_PROVIDER2 fill:#205566,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665151,color:#fff
+    style CONTAINER_ENGINE fill:#664343,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style MYAPP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style DNS_RESOLVER fill:#805060,color:#fff
     DOMAIN(example.com)
     SUBDOMAIN_MYAPP(myapp.example.com)
     DDNS(myddns.ddns.net)
@@ -2400,20 +2400,20 @@ If you try to reach the service through the **WireGuard** VPN, the flow will loo
 
 ```mermaid
 flowchart TB
-    style HOSTING_PROVIDER fill: #4d683b
-    style DDNS_PROVIDER fill: #69587b
-    style INTERNET_SERVICE_PROVIDER fill: #205566
-    style SINGLE_BOARD_COMPUTER fill: #665151
-    style CONTAINER_ENGINE fill: #664343
-    style TRAEFIK_CONTAINER fill: #663535
-    style PIHOLE_CONTAINER fill: #663535
-    style UNBOUND_CONTAINER fill: #663535
-    style WIREGUARD_CONTAINER fill: #663535
-    style MYAPP_CONTAINER fill: #663535
-    style PIHOLE_DNS_RECORDS fill: #806030
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style VPN_CLIENT fill: #105040
+    style HOSTING_PROVIDER fill:#4d683b,color:#fff
+    style DDNS_PROVIDER fill:#69587b,color:#fff
+    style INTERNET_SERVICE_PROVIDER fill:#205566,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665151,color:#fff
+    style CONTAINER_ENGINE fill:#664343,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style PIHOLE_CONTAINER fill:#663535,color:#fff
+    style UNBOUND_CONTAINER fill:#663535,color:#fff
+    style WIREGUARD_CONTAINER fill:#663535,color:#fff
+    style MYAPP_CONTAINER fill:#663535,color:#fff
+    style PIHOLE_DNS_RECORDS fill:#806030,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style VPN_CLIENT fill:#105040,color:#fff
     DOMAIN(example.com)
     SUBDOMAIN_MYAPP(myapp.example.com)
     SUBDOMAIN_WIREGUARD(wireguard.example.com)
@@ -2564,13 +2564,13 @@ Here is an overview of the network flow :
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style APP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style SINGLE_BOARD_COMPUTER fill: #665555
-    style CONTAINER_ENGINE fill: #664545
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style APP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{9000/tcp}}
@@ -2705,13 +2705,13 @@ Here is an overview of the network flow :
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style APP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style SINGLE_BOARD_COMPUTER fill: #665555
-    style CONTAINER_ENGINE fill: #664545
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style APP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{80/tcp}}
@@ -2844,13 +2844,13 @@ We will use it as a dashboard to list our services.
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style APP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style SINGLE_BOARD_COMPUTER fill: #665555
-    style CONTAINER_ENGINE fill: #664545
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style APP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{8080/tcp}}
@@ -3104,13 +3104,13 @@ The application will be available at https://dashboard.example.com.
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style APP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style SINGLE_BOARD_COMPUTER fill: #665555
-    style CONTAINER_ENGINE fill: #664545
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style APP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{3001/tcp}}
@@ -3234,13 +3234,13 @@ The application is available at https://dashdot.example.com.
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style APP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style SINGLE_BOARD_COMPUTER fill: #665555
-    style CONTAINER_ENGINE fill: #664545
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style APP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{3001/tcp}}
@@ -3370,13 +3370,13 @@ We will connect it to our PHP website.
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style APP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style SINGLE_BOARD_COMPUTER fill: #665555
-    style CONTAINER_ENGINE fill: #664545
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style APP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{3000/tcp}}
@@ -3562,13 +3562,13 @@ It also allows to directly use EXIF data to be used as title, etc. or to display
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style APP_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style SINGLE_BOARD_COMPUTER fill: #665555
-    style CONTAINER_ENGINE fill: #664545
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style APP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{80/tcp}}
@@ -3751,15 +3751,15 @@ The website also requires a **MySQL** or **MariaDB** database, we will use Maria
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style NGINX_CONTAINER fill: #663535
-    style PHP_CONTAINER fill: #663535
-    style MARIADB_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style SERVER_DEVICE fill: #665555
-    style CONTAINER_ENGINE fill: #664545
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style NGINX_CONTAINER fill:#663535,color:#fff
+    style PHP_CONTAINER fill:#663535,color:#fff
+    style MARIADB_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SERVER_DEVICE fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_NGINX_PORT{{80/tcp}}
@@ -4150,11 +4150,11 @@ Basically here is how it works when using the dynamic strategy with Traefik :
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style SABLIER_CONTAINER fill: #663535
-    style APP_CONTAINER fill: #663535
-    style TRAEFIK_MIDDLEWARE fill: #806030
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style SABLIER_CONTAINER fill:#663535,color:#fff
+    style APP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     DOCKER_SABLIER_PORT{{10000/tcp}}
     DOCKER_APP_PORT{{myapp port}}
     WAITING_PAGE(waiting page)
@@ -4282,14 +4282,14 @@ We will configure Sablier for the Dashdot application as an example, but it can 
 
 ```mermaid
 flowchart LR
-    style INCOMING_REQUEST fill: #205566
-    style TRAEFIK_CONTAINER fill: #663535
-    style SABLIER_CONTAINER fill: #663535
-    style DASHDOT_CONTAINER fill: #663535
-    style TRAEFIK_ROUTER fill: #806030
-    style TRAEFIK_MIDDLEWARE fill: #806030
-    style SERVER_DEVICE fill: #665555
-    style CONTAINER_ENGINE fill: #664545
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style SABLIER_CONTAINER fill:#663535,color:#fff
+    style DASHDOT_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SERVER_DEVICE fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_SABLIER_PORT{{10000/tcp}}
