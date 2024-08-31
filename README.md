@@ -177,7 +177,8 @@ All of this runs on a single **Banana Pi M5 board** ! With the following specifi
 > I only have a few users on my public applications,
 > of course if you need to handle more load you might consider a better machine.
 
-It should also work on many other **ARM** boards such as the **Raspberry Pi**.
+It should work on many other **ARM** boards such as the **Raspberry Pi**,
+and also on **x86**-based device by just using the right Docker image.
 
 ## Architecture
 
@@ -4188,9 +4189,30 @@ flowchart LR
 
 When a request arrives, a **Traefik middleware** is responsible to contact Sablier to know if the target container is ready or not.
 Sablier asks for the container status to the **Docker provider**, then return the result to the proxy, to either serve the waiting page or redirect to the application.
-It is done through a `X-Sablier-Status` request header value.
+It is done through a `X-Sablier-Status` request header value :
 
-It continuously checks for instance status until it is ready, and will intend to start the underlying container if not started,
+```mermaid
+sequenceDiagram
+    User->>Proxy: Website Request
+    Proxy->>Sablier: Reverse Proxy Plugin Request Session Status
+    Sablier->>Provider: Request Instance Status
+    Provider-->>Sablier: Response Instance Status
+    Sablier-->>Proxy: Returns the X-Sablier-Status Header
+    alt X-Sablier-Status` value is `not-ready`
+        Proxy-->>User: Serve the waiting page
+        loop until `X-Sablier-Status` value is `ready`
+            User->>Proxy: Self-Reload Waiting Page
+            Proxy->>Sablier: Reverse Proxy Plugin Request Session Status
+            Sablier->>Provider: Request Instance Status
+            Provider-->>Sablier: Response Instance Status
+            Sablier-->>Proxy: Returns the waiting page
+            Proxy-->>User: Serve the waiting page
+        end
+    end
+    Proxy-->>User: Content
+```
+
+As you see it continuously checks for instance status until it is ready, and will intend to start the underlying container if not started,
 or shut it down if it has reached the configured period of inactivity.
 
 > [!NOTE]
