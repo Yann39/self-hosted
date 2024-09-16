@@ -4474,9 +4474,92 @@ Later we can even place volume backups and database exports in the _/opt/apps_ d
 
 ## Files
 
+### Rsync
+
+<img src="images/logo-rsync.png" alt="Rsync logo"/>
+
+The simplest way to back up the content of our N100 server is by using `rsync`.
+
+`rsync` (remote sync) is a utility for **transferring** and **synchronizing** files between a computer and a storage drive
+and across networked computers by comparing the modification times and sizes of files.
+
+We can use it to copy the file system (actually only required files) to another machine (such as a Windows computer on the local network,
+or any external drive connected to it) through a mount point.
+
+1. First, make sure to have a folder on the machine that will hold the backup (Windows in my case) that is shared and have enough storage for the server backup :
+
+    - Create a folder to hold the backup data (i.e. _E:\data\N100 backup_),
+    - Right-click on the folder
+    - Select _Properties > Sharing tab_
+    - Click _Share..._ and choose the user with whom you want to share the folder (you can either use your default Windows user or create a specific user for that)
+    - Assign the appropriate permissions (at least Read access).
+    - Click Share, then Done.
+    - Take note of the network path of the share (i.e. \\DESKTOP-ABCDEF\N100 backup).
+
+2. Secondly, mount the shared Windows folder on the server :
+
+   To mount a Windows share, you need to install the _cifs-utils_ package :
+
+   ```bash
+   sudo apt install cifs-utils
+   ```
+
+   Then create a directory where you will mount the shared folder. For example:
+
+   ```bash
+   sudo mkdir /mnt/windows
+   ```
+
+   And mount the shared folder from the Windows machine to the server :
+
+   ```bash
+   sudo mount -t cifs -o username=my_windows_user "//DESKTOP-ABCDEF/N100 backup" /mnt/windows
+   ```
+
+   > [!NOTE]
+   > You can create a file to hold the credentials for authentication (so you can protect the credentials file by setting the appropriate permissions),
+   > then use the `-o credentials` option of the `mount` command
+
+   Explanation:
+    - `-t cifs`: Specifies that you’re using the **CIFS** protocol
+    - `//DESKTOP-ABCDEF/N100 backup`: The network path to the Windows share
+    - `/mnt/windows`: The mount point on the server
+
+3. Finally, use `rsync` to synchronize the files to the mount point :
+
+   Install `rsync`:
+
+   ```bash
+   sudo apt install rsync
+   ```
+
+   Then either sync all the file system or only some folders :
+
+   ```bash
+   # all file system with some exceptions
+   sudo rsync -aAXv --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*","/mnt/*","/media/*","/lost+found"} / /mnt/windows
+   # only specified paths
+   sudo rsync -aAXv /home /opt/apps /var/lib/docker/volumes /mnt/windows
+   ```
+
+   Explanation:
+    - `-aAXv`: Preserve permissions, ownership, timestamps, and device files, with verbose output
+    - `--exclude`: Exclude certain directories
+    - `/`: The root of the server, to be backed up (without excluded directories)
+    - `/home /opt/apps /var/lib/docker/volumes`: The 3 directories to be backed up
+    - `/mnt/windows`: The mount point on the server
+
+Once the backup is complete, you can verify that the backup files are on the destination machine and that they contain all your server data.
+
+> [!NOTE]
+> If you want to make a bit-for-bit clone of your entire disk, you can use the `dd` command.
+> However, it requires more storage and time, for the time being I prefer `rsync` for flexibility, file-based backups, and faster cloning of only necessary files
+
+### FreeFileSync
+
 <img src="images/logo-freefilesync.svg" alt="FreeFileSync logo" height="64"/>
 
-I will simply use a tool from my Windows machine, to copy the _/opt/apps_ folder regularly through **SFTP**.
+Another solution than [rsync](#rsync) is to simply use a tool from the Windows machine, to copy the _/opt/apps_ folder regularly through **SFTP**.
 
 One awesome tool which I've been using for years for synchronizing my disks, is named **FreeFileSync**.
 
