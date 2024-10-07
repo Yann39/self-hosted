@@ -223,14 +223,14 @@ flowchart TB
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
     DOCKER_UNBOUND_PORT53{{53/udp}}
     DOCKER_SABLIER_PORT10000{{10000/tcp}}
-    TRAEFIK_ROUTER_MYAPP(myapp\n.example.com)
-    TRAEFIK_ROUTER_PIHOLE(pihole\n.example.com)
-    TRAEFIK_ROUTER_TRAEFIK(traefik\n.example.com)
+    TRAEFIK_ROUTER_MYAPP(myapp<br/>.example.com)
+    TRAEFIK_ROUTER_PIHOLE(pihole<br/>.example.com)
+    TRAEFIK_ROUTER_TRAEFIK(traefik<br/>.example.com)
     ROOT_DNS_SERVERS[Root DNS servers]
     DNS_ISP[DNS 1 & 2]
     DOCKER_PIHOLE_DNS[DNS 1 & 2]
-    PIHOLE_DNS_PIHOLE[pihole\n.example.com]
-    PIHOLE_DNS_TRAEFIK[traefik\n.example.com]
+    PIHOLE_DNS_PIHOLE[pihole<br/>.example.com]
+    PIHOLE_DNS_TRAEFIK[traefik<br/>.example.com]
 
     subgraph VPN_CLIENT[VPN CLIENT]
         WIREGUARD_CLIENT_ENDPOINT[Endpoint]
@@ -321,7 +321,7 @@ flowchart TB
     TRAEFIK_ROUTER_TRAEFIK -->|Dashboard / API| REDIRECT
     IP_WHITELISTING --> BASIC_AUTH
     IP_WHITELISTING --> DOCKER_PIHOLE_PORT80
-    REDIRECT ---> SABLIER
+    REDIRECT ----> SABLIER
     SABLIER <-..->|return status| DOCKER_SABLIER_PORT10000
     SABLIER --->|not ready| WAITING_PAGE
     SABLIER --->|ready| DOCKER_MYAPP_PORT5000
@@ -697,8 +697,8 @@ flowchart LR
     style APPLICATION fill:#663535,color:#fff
     style SINGLE_BOARD_COMPUTER fill:#665151,color:#fff
     CLIENT((Client))
-    SUBDOMAIN_MYAPP(myapp\n.example.com)
-    DDNS(myddns\n.ddns.net)
+    SUBDOMAIN_MYAPP(myapp<br/>.example.com)
+    DDNS(myddns<br/>.ddns.net)
     ROUTER[public IP]
     ROUTER_PORT{{port}}
     DOCKER_TRAEFIK_PORT{{port}}
@@ -748,7 +748,7 @@ flowchart LR
     CLIENT((Client))
     VPN_CLIENT(DNS)
     VPN_ENDPOINT(Endpoint)
-    PIHOLE_DNS_MYAPP(myapp\n.example.com)
+    PIHOLE_DNS_MYAPP(myapp<br/>.example.com)
     DOCKER_TRAEFIK_PORT{{port}}
     APPLICATION_PORT{{port}}
     WIREGUARD_PORT{{port}}
@@ -796,7 +796,7 @@ flowchart LR
     style SINGLE_BOARD_COMPUTER fill:#665151,color:#fff
     CLIENT((Client))
     ISP_DNS(DNS)
-    PIHOLE_DNS_MYAPP(myapp\n.example.com)
+    PIHOLE_DNS_MYAPP(myapp<br/>.example.com)
     DOCKER_TRAEFIK_PORT{{port}}
     APPLICATION_PORT{{port}}
     PIHOLE_DNS{{port}}
@@ -995,7 +995,7 @@ flowchart LR
     style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
     style CONTAINER_ENGINE fill:#664545,color:#fff
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     DOCKER_TRAEFIK_PORT443{{433/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
@@ -1377,10 +1377,10 @@ flowchart TB
     style 5G_NETWORK fill:#263555,color:#fff
     style WORK_NETWORK fill:#263555,color:#fff
     style BANANA_PI fill:#504255,color:#fff
-    WINDOWS11(Peer 1 \n Home PC - Windows 11)
-    LAPTOP(Peer 2 \n Home laptop - Ubuntu 22)
-    MOBILE(Peer 3 \n Phone - Android 14)
-    MACOS(Peer 4 \n Work PC - MacOS 13)
+    WINDOWS11(Peer 1 <br/> Home PC - Windows 11)
+    LAPTOP(Peer 2 <br/> Home laptop - Ubuntu 22)
+    MOBILE(Peer 3 <br/> Phone - Android 14)
+    MACOS(Peer 4 <br/> Work PC - MacOS 13)
     WIREGUARD_SERVER(WireGuard server - Secure VPN)
     PIHOLE(Pi-Hole - Firewall & ad-blocking)
     UNBOUND(Unbound - Custom DNS resolver)
@@ -2151,11 +2151,13 @@ For the following examples, we will consider that the **user** enters http://mya
 Here is what happen when you try to reach a service which is **open to the internet**, without using any VPN,
 from your local network holding your homelab (on the left), or from any other location (on the right) :
 
-<table style="display:table;width:100%">
+<table width="100%">
 <tr>
-<td>
-
-From local network
+  <th>From local network</th>
+  <th>From outside local network</th>
+</tr>
+<tr>
+<td width="480px">
 
 ```mermaid
 flowchart TB
@@ -2272,7 +2274,7 @@ flowchart TB
 ```
 
 </td>
-<td>
+<td width="480px">
 
 From outside local network
 
@@ -2578,7 +2580,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(portainer.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -2719,7 +2721,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(phpmyadmin.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -2858,7 +2860,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(dashboard.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -3118,7 +3120,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(dashdot.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -3248,7 +3250,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(kuma.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -3385,7 +3387,7 @@ flowchart LR
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_IP_WHITELIST(IP whitelist)
     TRAEFIK_MIDDLEWARE_CORS(CORS)
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -3575,7 +3577,7 @@ flowchart LR
     DOCKER_APP_PORT{{80/tcp}}
     TRAEFIK_ROUTER_APP(lychee.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -3768,7 +3770,7 @@ flowchart LR
     DOCKER_MARIADB_PORT{{3306/tcp}}
     TRAEFIK_ROUTER_APP(quake.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -4160,7 +4162,7 @@ flowchart LR
     DOCKER_APP_PORT{{myapp port}}
     WAITING_PAGE(waiting page)
     TRAEFIK_MIDDLEWARE_APP(sablier-myapp)
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     INCOMING_REQUEST --> TRAEFIK_MIDDLEWARE_APP
 
     subgraph SABLIER_CONTAINER[SABLIER CONTAINER]
@@ -4320,7 +4322,7 @@ flowchart LR
     TRAEFIK_ROUTER_APP(dashdot.example.com)
     TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
     TRAEFIK_MIDDLEWARE_DASHDOT(sablier-dashdot)
-    INCOMING_REQUEST((INCOMING\nREQUEST))
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
     INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
 
@@ -4539,14 +4541,14 @@ or any external drive connected to it) through a mount point.
    # all file system with some exceptions
    sudo rsync -aAXv --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*","/mnt/*","/media/*","/lost+found"} / /mnt/windows
    # only specified paths
-   sudo rsync -aAXv /home /opt/apps /var/lib/docker/volumes /mnt/windows
+   sudo rsync -aAXv /home /opt/apps /var/lib/docker/volumes /var/log /mnt/windows
    ```
 
    Explanation:
     - `-aAXv`: Preserve permissions, ownership, timestamps, and device files, with verbose output
     - `--exclude`: Exclude certain directories
     - `/`: The root of the server, to be backed up (without excluded directories)
-    - `/home /opt/apps /var/lib/docker/volumes`: The 3 directories to be backed up
+    - `/home /opt/apps /var/lib/docker/volumes /var/log`: The 4 directories to be backed up
     - `/mnt/windows`: The mount point on the server
 
 Once the backup is complete, you can verify that the backup files are on the destination machine and that they contain all your server data.
