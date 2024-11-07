@@ -145,7 +145,6 @@ These are the tools we are going to run :
 |          <img src="images/logo-ackee.png" alt="Ackee logo" height="32"/>          | Ackee          | https://github.com/electerious/Ackee        | Analytics tool that cares about privacy              |
 |         <img src="images/logo-lychee.png" alt="Lychee logo" height="32"/>         | Lychee         | https://github.com/LycheeOrg/Lychee         | Free photo-management tool                           |
 |     <img src="images/logo-phpmyadmin.svg" alt="PhpMyAdmin logo" height="32"/>     | PhpMyAdmin     | https://github.com/phpmyadmin/phpmyadmin    | Web user interface to manage MySQL databases         |
-|   <img src="images/logo-freefilesync.png" alt="FreeFileSync logo" height="32"/>   | FreeFileSync   | https://github.com/hkneptune/FreeFileSync   | Folder comparison and synchronization software       |
 
 And also some personal applications :
 
@@ -2235,7 +2234,7 @@ flowchart TB
 
     end
 
-    CLIENT((client)) --->|" http://myapp.example.com "| BROWSER
+    CLIENT((client)) --->|" http‎://myapp.example.com "| BROWSER
     BROWSER((browser)) -->|HTTP| ROUTER_PUBLIC_IP
     DOMAIN <-->|subdomain| SUBDOMAIN_MYAPP
     SUBDOMAIN_MYAPP <-->|CNAME| DDNS
@@ -2275,8 +2274,6 @@ flowchart TB
 
 </td>
 <td width="480px">
-
-From outside local network
 
 ```mermaid
 flowchart TB
@@ -2352,7 +2349,7 @@ flowchart TB
 
     end
 
-    CLIENT((client)) ---->|" http://myapp.example.com "| BROWSER
+    CLIENT((client)) ---->|" http‎://myapp.example.com "| BROWSER
     BROWSER((browser)) ---> ROUTER_PUBLIC_IP
     DOMAIN <-->|subdomain| SUBDOMAIN_MYAPP
     SUBDOMAIN_MYAPP <-->|CNAME| DDNS
@@ -2499,7 +2496,7 @@ flowchart TB
     CLIENT((client)) --> VPN_CLIENT
     WIREGUARD_CLIENT_ENDPOINT --> SUBDOMAIN_WIREGUARD
     WIREGUARD_CLIENT_DNS -->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
-    VPN_CLIENT -->|" http://myapp.example.com "| BROWSER
+    VPN_CLIENT -->|" http‎://myapp.example.com "| BROWSER
     BROWSER((browser)) --> ROUTER_PUBLIC_IP
     DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
     DOMAIN -->|subdomain| SUBDOMAIN_WIREGUARD
@@ -4460,7 +4457,7 @@ Here is how the "hacker-terminal" waiting page looks like while starting the Das
 We have so far set up a structure with a folder per stack/container (in _/opt/apps_).
 That way each stack definition (Docker Compose file) and bind mount data is fully contained in that single folder.
 
-The only exception are **named volumes**, which stores data in the _/var/lib/docker/volumes_ directory.
+The only exception is **named volumes**, which store data in the _/var/lib/docker/volumes_ directory.
 This includes the databases of some applications, which could also be backed up separately using the tool associated with the database management system.
 
 This is the only data that really concerns us, thanks to Docker, the system has hardly been modified at all, so there's no need to back it up completely
@@ -4518,14 +4515,15 @@ or any external drive connected to it) through a mount point.
    sudo mount -t cifs -o username=my_windows_user "//DESKTOP-ABCDEF/N100 backup" /mnt/windows
    ```
 
-   > [!NOTE]
-   > You can create a file to hold the credentials for authentication (so you can protect the credentials file by setting the appropriate permissions),
-   > then use the `-o credentials` option of the `mount` command
-
    Explanation:
     - `-t cifs`: Specifies that you’re using the **CIFS** protocol
     - `//DESKTOP-ABCDEF/N100 backup`: The network path to the Windows share
     - `/mnt/windows`: The mount point on the server
+
+   > [!NOTE]
+   > You can create a file to hold the credentials for authentication, instead of specifying it in the command line
+   > (so you can protect the credentials file by setting the appropriate permissions),
+   > this can be done by using the `-o credentials` option of the `mount` command
 
 3. Finally, use `rsync` to synchronize the files to the mount point :
 
@@ -4583,7 +4581,7 @@ To do a mirror synchronization :
 
    <img src="images/freefilesync-choose-folders.png" alt="FreeFileSync choose folders"/>
 
-   Click the cloud icon to connect to the bananapi board via SFTP and select the _/opt/apps_ folder
+   Click the cloud icon to connect to the Banana Pi board via SFTP and select the _/opt/apps_ folder
 
 4. Compare them :
 
@@ -4621,8 +4619,8 @@ sudo docker run --rm --mount source=portainer-vol,target=/mybackup -v $(pwd):/ba
 This will create a _portainer-vol-backup.tar_ archive in the current directory.
 The tar will contain a _mybackup_ directory containing all volume data.
 
-Then feel free to move it to the _/opt/apps/portainer_ directory if you want to back it up along with that directory when using FreeFileSync (see [Files](#files)).
-Or simply move the backup file to an external server.
+Then feel free to move it to the _/opt/apps/portainer_ directory if you want to back it up along with that directory when using FreeFileSync (see [Files](#files)),
+or simply move the backup file to an external server.
 
 > [!IMPORTANT]
 > Some services may need to be stopped during backup or restore to ensure data consistency
