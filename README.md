@@ -60,7 +60,7 @@ It uses only **free** and **open source** software and hardware.
     5. [Docker & Docker Compose](#docker--docker-compose)
 
    </details>
-4. <details>
+4. <details open>
    <summary><a href="#network-configuration">Network configuration</a></summary>
 
     1. [IP settings](#ip-settings)

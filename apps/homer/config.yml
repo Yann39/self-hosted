@@ -94,7 +94,7 @@ services:
         tag: "tool"
         url: "https://portainer.example.com"
       - name: "Wireguard UI"
-        logo: "https://seeklogo.com/images/W/wireguard-logo-259B3D155A-seeklogo.com.png"
+        logo: "https://cdn.icon-icons.com/icons2/2699/PNG/512/wireguard_logo_icon_168760.png"
         subtitle: "Simple yet fast and modern VPN"
         tag: "network"
         url: "https://wireguard-ui.example.com/status"
