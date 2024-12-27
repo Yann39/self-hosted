@@ -1616,9 +1616,21 @@ In **WireGuard Clients** settings, create a new client :
 
 It should propose IP allocation of `10.10.1.2/32` for first client, then `10.10.1.3/32`, and so on as we set server interface address to `10.10.1.1/24`.
 
-By default, allowed IPs is set to `0.0.0.0/0`, which will block untunneled traffic (block all traffic from taking a route that isn't the tunnel).
-Change it to `0.0.0.0/1, 128.0.0.0/1` to reroute all traffic to the WireGuard tunnel.
+By default, **Allowed IPs** is set to `0.0.0.0/0`, which represents all IPv4 addresses (full tunneling).
+Allowed IPs is used to tell the server the IP addresses to which it will allow clients to connect.
+This should be set to all the addresses you want to have access inside the tunnel.
+
+I had to change it to `0.0.0.0/1, 128.0.0.0/1` to actually reroute all traffic to the WireGuard tunnel.
 Using `/1` instead of `/0` ensure that it takes precedence over the default `/0` route.
+
+Keeping `0.0.0.0/0` caused problems in my case (internet not working / local server not reachable).
+I'm not sure I can explain why, I prefer not to say anything that might mislead you, but I guess it is related to Docker networking.
+
+Note that you could also use `172.17.0.1/32, 128.0.0.0/1`, where the first IP matches the Docker subnet and the second matches your LAN subnet.
+
+Adding the LAN subnet is necessary if you  want to be able to reach the Banana Pi locally through SSH while connected to VPN.
+
+On clients that don't need local network access (i.e. on mobile), no need to include `128.0.0.0/1`.
 
 Finally, to configure a VPN client :
 
@@ -2010,10 +2022,19 @@ which need to be slightly adjusted.
 
 #### Configure MTU
 
-By default, WireGuard sets an MTU value of `1450`, which may not be optimal for your connection.
+By default, WireGuard sets an MTU value of `1450` bytes, which may not be optimal for your connection.
 
 Most of **Ethernet** connections have an MTU of `1500`.
-You can confirm this on your network by running the `ping` command with the right parameters :
+Docker also sets the MTU of a **bridge** network to `1500` by default.
+You can confirm this with `ip link | grep mtu`.
+
+```
+...
+5: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default
+...
+```
+
+You can also observe any packet fragmentation on your network by running the `ping` command with the right parameters :
 
 ```console
 ping www.google.com -f -l 1472
@@ -2032,6 +2053,20 @@ The worst case (**IPv6**, which has a `40` bytes header compared to `20` bytes o
 However, if you know that you're going to be using IPv4 exclusively, then you could go with `1440`.
 
 So just set that value as the MTU for the WireGuard server and peer.
+
+Another solution, instead of having to set the MTU on each client,
+would be to clamp the **MSS** on TCP packets to a smaller value on behalf of the clients (i.e. through **iptables**) :
+
+```bash
+iptables -t filter -A FORWARD -o wg0 -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1360
+iptables -t mangle -A POSTROUTING -o eth0 -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1360
+```
+
+**TCP MSS** is the maximum amount of data in bytes that a host is willing to accept in a single TCP segment.
+
+When the TCP traffic will go through the VPN tunnel, additional `60` bytes headers will be added to the original packet (to keep it secure),
+thus using `1360` will prevent the size of the encapsulated packet to go beyond the MTU of the VPN interface (`1420`).
+
 
 #### Measure speed with iPerf
 
