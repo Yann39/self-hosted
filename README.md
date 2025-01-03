@@ -133,7 +133,7 @@ These are the tools we are going to run :
 |         <img src="images/logo-docker.svg" alt="Docker logo" height="24"/>         | Docker         | https://github.com/docker                   | Help to build, share, and run container applications |
 | <img src="images/logo-docker-compose.png" alt="Docker Compose logo" height="38"/> | Docker Compose | https://github.com/docker/compose           | Run multi-container applications with Docker         |
 |      <img src="images/logo-portainer.svg" alt="Portainer logo" height="32"/>      | Portainer      | https://github.com/portainer/portainer      | Management platform for containerized applications   |
-|        <img src="images/logo-sablier.png" alt="Sablier logo" height="38"/>        | Sablier        | https://github.com/acouvreur/sablier        | Workload scaling on demand                           |
+|        <img src="images/logo-sablier.svg" alt="Sablier logo" height="32"/>        | Sablier        | https://github.com/acouvreur/sablier        | Workload scaling on demand                           |
 |        <img src="images/logo-traefik.svg" alt="Traefik logo" height="35"/>        | Traefik        | https://github.com/traefik/traefik          | Modern HTTP reverse proxy and load balancer          |
 |      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="30"/>      | Wireguard      | https://github.com/WireGuard                | Simple yet fast and modern VPN                       |
 |      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="30"/>      | Wireguard UI   | https://github.com/ngoduykhanh/wireguard-ui | Web user interface to manage WireGuard setup         |
@@ -1616,23 +1616,57 @@ In **WireGuard Clients** settings, create a new client :
 
 It should propose IP allocation of `10.10.1.2/32` for first client, then `10.10.1.3/32`, and so on as we set server interface address to `10.10.1.1/24`.
 
-By default, **Allowed IPs** is set to `0.0.0.0/0`, which represents all IPv4 addresses (full tunneling).
-Allowed IPs is used to tell the server the IP addresses to which it will allow clients to connect.
+Then you can configure **Allowed IPs**, which is used to tell the server the IP addresses to which it will allow client to connect (it will set routes for the peer on your host).
 This should be set to all the addresses you want to have access inside the tunnel.
 
-I had to change it to `0.0.0.0/1, 128.0.0.0/1` to actually reroute all traffic to the WireGuard tunnel.
+By default, it is set to `0.0.0.0/0`, which represents all IPv4 addresses (full tunneling), and will block all non-tunneled traffic
+(WireGuard client will automatically check a "Block untunneled traffic (kill-switch)" checkbox in the UI).
+
+Keeping `0.0.0.0/0` caused problems in my case on my main Windows machine (local server and hosts not reachable).
+Indeed, this blocks access to local network resources, as all traffic, including local network traffic,
+is routed through the WireGuard tunnel, thus preventing direct communication with devices on the local network.
+
+So I had to change it to `0.0.0.0/1, 128.0.0.0/1` (or just uncheck the checkbox), to make it work as expected.
 Using `/1` instead of `/0` ensure that it takes precedence over the default `/0` route.
 
-Keeping `0.0.0.0/0` caused problems in my case (internet not working / local server not reachable).
-I'm not sure I can explain why, I prefer not to say anything that might mislead you, but I guess it is related to Docker networking.
+To understand what's going on, you can check the routes on Windows by running the `route print` command to see what is modified when you change allowed IPs :
 
-Note that you could also use `172.17.0.1/32, 128.0.0.0/1`, where the first IP matches the Docker subnet and the second matches your LAN subnet.
+When using `0.0.0.0/0` :
 
-Adding the LAN subnet is necessary if you  want to be able to reach the Banana Pi locally through SSH while connected to VPN.
+```cmd
+===========================================================================
+Network Destination   	   Netmask  	   Gateway   	 Interface   Metric
+          0.0.0.0          0.0.0.0         On-link       10.10.1.2        0
+      192.168.0.0    255.255.255.0         On-link    192.168.0.11      281
+              ...              ...             ...             ...      ...
+===========================================================================
+```
 
-On clients that don't need local network access (i.e. on mobile), no need to include `128.0.0.0/1`.
+When using `0.0.0.0/1, 128.0.0.0/1` :
 
-Finally, to configure a VPN client :
+```cmd
+===========================================================================
+Network Destination   	   Netmask  	   Gateway   	 Interface   Metric
+          0.0.0.0        128.0.0.0         On-link       10.10.1.2        5
+  127.255.255.255  255.255.255.255         On-link       10.10.1.2      261
+        128.0.0.0        128.0.0.0         On-link       10.10.1.2        5
+      192.168.0.0    255.255.255.0         On-link    192.168.0.11      281
+              ...              ...             ...             ...      ...
+===========================================================================
+```
+
+The first config covers the entire IP range with one route while the second config splits the IP range into two halves,
+each covered by a separate route.
+
+As I understand this second setup is a form of split tunneling that routes most traffic through the VPN
+while still allowing direct access to the local network resources.
+Indeed, the route `192.168.0.11` (desktop PC's local IP address) is more specific than the `0.0.0.0/1 ` and  `128.0.0.0/1 ` routes, so it takes precedence.
+That way traffic to `192.168.0.x` addresses will match these more specific routes and be sent directly to the local network interface (`192.168.0.11`), bypassing the VPN.
+It's more flexible than the `0.0.0.0/0` configuration, which would route all traffic (including local) through the VPN.
+
+On other clients this is not necessarily required, it depends on the routing table.
+
+Anyway, to run a VPN client :
 
 1. Export config file for your client
 2. Install WireGuard client on your client machine
@@ -4167,7 +4201,7 @@ You will get access denied as you need a valid **JWT token**, but it confirms th
 
 # Scale to zero with Sablier
 
-<img src="images/logo-sablier.png" alt="Sablier logo"/>
+<img src="images/logo-sablier.svg" alt="Sablier logo" height="128"/>
 
 Some of our services will be accessed quite rarely (i.e. UIs of monitoring tools, websites open only to family through VPN, etc.),
 it would be a shame to leave them running for days and waste resources while there are no requests, wouldn't it ?
