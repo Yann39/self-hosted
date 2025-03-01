@@ -3518,7 +3518,9 @@ Note that Ackee requires correct **CORS headers** to be able to contact the targ
   Access-Control-Allow-Credentials: true
   ```
 - The `Access-Control-Max-Age` header tells the browser that all `Access-Control-Allow-*` headers can be cached for one hour. This minimizes the amount of preflight requests.
+  ```
   Access-Control-Max-Age: 3600
+  ```
 
 These are all set using **Traefik labels** in the Docker service definition.
 
@@ -3592,7 +3594,7 @@ networks:
 
 Things to notice :
 
-- Uptime Kuma's data is stored in a **MongoDB** database which will run in its own container named `ackee-mongodb`. MongoDB's data is bound to a _data_ directory in the current
+- Ackee's data is stored in a **MongoDB** database which will run in its own container named `ackee-mongodb`. MongoDB's data is bound to a _data_ directory in the current
   directory
 - It uses Traefik **labels** on the `ackee-app` container to :
     - create a **service** which will point to our container application running on port `3001`
@@ -3620,6 +3622,12 @@ It should also have generated the needed Let's Encrypt certificates in the _acme
 The application is available at https://ackee.example.com.
 
 To track a website, simply follow the instruction by adding the required embed code in the target pages.
+Basically you need to :
+
+1. Add a domain in Ackee settings
+2. Add the script in the target pages (embed code will be provided by Ackee)
+
+For more advanced tracking (events, etc.) please refer to the documentation.
 
 ## Lychee
 
