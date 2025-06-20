@@ -133,7 +133,7 @@ These are the tools we are going to run :
 |         <img src="images/logo-docker.svg" alt="Docker logo" height="24"/>         | Docker         | https://github.com/docker                   | Help to build, share, and run container applications |
 | <img src="images/logo-docker-compose.png" alt="Docker Compose logo" height="38"/> | Docker Compose | https://github.com/docker/compose           | Run multi-container applications with Docker         |
 |      <img src="images/logo-portainer.svg" alt="Portainer logo" height="32"/>      | Portainer      | https://github.com/portainer/portainer      | Management platform for containerized applications   |
-|        <img src="images/logo-sablier.svg" alt="Sablier logo" height="32"/>        | Sablier        | https://github.com/acouvreur/sablier        | Workload scaling on demand                           |
+|        <img src="images/logo-sablier.svg" alt="Sablier logo" height="32"/>        | Sablier        | https://github.com/sablierapp/sablier       | Workload scaling on demand                           |
 |        <img src="images/logo-traefik.svg" alt="Traefik logo" height="35"/>        | Traefik        | https://github.com/traefik/traefik          | Modern HTTP reverse proxy and load balancer          |
 |      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="30"/>      | Wireguard      | https://github.com/WireGuard                | Simple yet fast and modern VPN                       |
 |      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="30"/>      | Wireguard UI   | https://github.com/ngoduykhanh/wireguard-ui | Web user interface to manage WireGuard setup         |
@@ -4322,7 +4322,7 @@ version: "3.7"
 
 services:
   sablier:
-    image: acouvreur/sablier:latest
+    image: sablierapp/sablier:latest
     container_name: sablier
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -4364,7 +4364,7 @@ Thus, simply add the following into the Traefik static configuration file (_trae
 experimental:
   plugins:
     sablier:
-      moduleName: "github.com/acouvreur/sablier"
+      moduleName: "github.com/sablierapp/sablier"
       version: "v1.7.0"
 ```
 
