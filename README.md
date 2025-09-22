@@ -2,8 +2,8 @@
 
 # Personal self-hosting guide
 
-![Static Badge](https://img.shields.io/badge/Version-1.2.0-2AAB92)
-![Static Badge](https://img.shields.io/badge/Last_update-02_Aug_2024-blue)
+![Static Badge](https://img.shields.io/badge/Version-1.2.1-2AAB92)
+![Static Badge](https://img.shields.io/badge/Last_update-22_Sept_2025-blue)
 ![Static Badge](https://img.shields.io/badge/Free_&_Open_source-GPL_V3-green)
 
 This project describes my personal **self-hosted** infrastructure setup, running on a **Banana Pi M5** board.
@@ -1542,13 +1542,15 @@ Well, in **WireGuard Server** menu :
   ```
   iptables -A FORWARD -i %1 -j ACCEPT;
   iptables -A FORWARD -o %1 -j ACCEPT;
-  iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE
+  iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE;
+  iptables -t mangle -A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
   ```
 - set **Post Down Script** to :
   ```
   iptables -D FORWARD -i %1 -j ACCEPT;
   iptables -D FORWARD -o %1 -j ACCEPT;
-  iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE
+  iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE;
+  iptables -t mangle -D FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
   ```
 
 **Post Up** and **Post Down** defines steps to be run after the interface is turned on or off, respectively.
@@ -1563,7 +1565,13 @@ The rules will then be cleared once the tunnel is down.
 
 The first 2 rules allow packets to be forwarded between interfaces, for traffic originating from the WireGuard interface `wg0` (rule 1), and heading out of `wg0` (rule 2).
 These two rules allow forwarding so every traffic going in or out of the WireGuard interface can be forwarded (routed).
-The last rule translates incoming IPs to the IP on every `eth` interface, so basically **NAT**.
+The third rule translates incoming IPs to the IP on every `eth` interface, so basically **NAT**.
+
+The last rule adds a rule to the `mangle` table to adjust the TCP packets maximum segment size (MSS) according to the MTU.
+It is not mandatory but TCP MSS clamping is generally considered a good practice and is recommended in several scenarios,
+especially when there are potential Path MTU Discovery (PMTUD) issues or when traffic goes through tunnels or VPNs that add extra headers,
+reducing the effective MTU. It helps avoid packet fragmentation and drop by ensuring that TCP segment sizes are limited according to the smallest MTU on the path.
+See [Configure MTU](#configure-mtu) later on for more details.
 
 You can see that iptables are applied by running :
 
@@ -2101,6 +2109,8 @@ iptables -t mangle -A POSTROUTING -o eth0 -p tcp --tcp-flags SYN,RST SYN -j TCPM
 When the TCP traffic will go through the VPN tunnel, additional `60` bytes headers will be added to the original packet (to keep it secure),
 thus using `1360` will prevent the size of the encapsulated packet to go beyond the MTU of the VPN interface (`1420`).
 
+Note that you can also use the `--clamp-mss-to-pmtu` option (instead of `--set-mss 1360`) to automatically
+set the TCP MSS to the Path MTU (Maximum Transmission Unit) minus 40 bytes (which accounts for TCP/IP headers).
 
 #### Measure speed with iPerf
 
@@ -3598,11 +3608,11 @@ Things to notice :
   directory
 - It uses Traefik **labels** on the `ackee-app` container to :
     - create a **service** which will point to our container application running on port `3001`
-    - create an HTTP **router** that will match `uptime-kuma.example.com` URL on our `websecure` **entrypoint** to point to our service
+    - create an HTTP **router** that will match `ackee.example.com` URL on our `websecure` **entrypoint** to point to our service
     - assign the `vpn-whitelist` **middleware** so that the traffic will be restricted to allowed IPs only (application reachable only from local network or through VPN)
     - create a `corsheaders` middleware to set the CORS configuration required by Ackee
     - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
-- It runs in its own **network** (`uptime-kuma-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
+- It runs in its own **network** (`ackee-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
 
 ### Run
 
