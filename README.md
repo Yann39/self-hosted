@@ -834,11 +834,11 @@ flowchart LR
 
 ## IP settings
 
-The following changes to the IP settings are required if you want all your internet traffic to be redirected to your Banana Pi board so that
-every request goes through **Pi-Hole** and use the custom **DNS resolver** (**Unbound**) :
+The following changes to the IP settings are required if you want the **DNS requests** of your whole local network to go through
+**Pi-Hole** and the custom **DNS resolver** (**Unbound**) (only the DNS requests : the ad blocking is done at DNS level, the traffic itself does not need to go through the Banana Pi board) :
 
-- Assign a **static IP address** to the Banana Pi board, for example `192.168.0.17` (I have local **DHCP** enabled)
-- Set **DNS** (primary and secondary) manually, to point to the Banana Pi board address set up above (`192.168.0.17`)
+- Assign a **static IP address** to the Banana Pi, for example `192.168.0.17` (I have local **DHCP** enabled)
+- Make the devices use the Banana Pi as **DNS server** (`192.168.0.17`), either through the router (the DNS server it hands out with DHCP), or manually on each device
 
 Of course Pi-Hole container have to expose port **53** to receive incoming DNS requests. Refer to [Pi-hole](#pi-hole) setup for more details.
 
@@ -1102,7 +1102,7 @@ Then copy the output to the _credentials.txt_ file.
 
 ### TLS certificates
 
-<img src="images/logo-letsencrypt.svg" alt="Let's Encrypt logo" height="64"/>
+<img src="images/logo-letsencrypt.svg" alt="Let's Encrypt logo" height="72"/>
 
 To enable **HTTPS** on our websites, we need to get **TLS certificates** from a **certificate authority**.
 A TLS certificate certifies, in a way, the authenticity of a website (actually it proves that we have the ownership of the public key used for TLS encryption),
@@ -1189,6 +1189,26 @@ That way :
   and thus come with a Traefik Docker network assigned IP address, and will be **accepted**.
 - Requests coming from the internet without VPN will come with a public IP address and will be **rejected** as it will not match any whitelisted address.
 
+> [!NOTE]
+> A request from your own network to a name that resolves to your **public IP** goes through the NAT loopback of the router and reaches Traefik with the **public IP** as source : rejected as well.
+> So the private services must resolve to the LAN address of the Banana Pi for the devices that use them (Pi-Hole's local DNS records, see [Pi-hole](#pi-hole)), and a container that has to call
+> another one must use the **internal** name (i.e. `http://portainer:9000`), never the public URL.
+
+> [!WARNING]
+> Actually you should not whitelist a **Docker network range**.
+> A container is not a trusted client, a whitelisted Docker range would let a compromised public container
+> walk straight into the private services.
+>
+> Instead we should better whitelist the WireGuard subnet, **this is a todo** !
+>
+> A good practice would be also to have a network segmentation, having Traefik and the private services
+> (Pi-Hole, Portainer, Dashdot, Homer, PhpMyAdmin) on a private network, and the public services
+> (Lychee, Defrag-life, ...) on a public network, so that a compromised public container can only see Traefik
+> and the other public applications, never the private ones.
+
+Then it just needs to be referenced in the `middlewares` list of every router that must stay private (`vpn-whitelist@file`), as you will see in the services definitions.
+Keep in mind that it only protects the requests that go **through Traefik** : what a container can reach directly on the Docker networks is the job of the network segmentation.
+
 ### Configuration files details
 
 #### Static configuration file :
@@ -1210,6 +1230,9 @@ providers:
   docker:
     watch: true
     exposedByDefault: false
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
 
 certificatesResolvers:
   default:
@@ -1219,6 +1242,12 @@ certificatesResolvers:
       caServer: 'https://acme-v02.api.letsencrypt.org/directory'
       dnsChallenge:
         provider: <your_provider_here>
+
+experimental:
+  plugins:
+    sablier:
+      moduleName: "github.com/sablierapp/sablier-traefik-plugin"
+      version: "v1.1.0"
 
 log:
   level: info
@@ -1697,37 +1726,96 @@ Do this for each client on every device you need.
 
 <img src="images/screen-wireguard-ui.png" alt="WireGuard-UI screenshot"/>
 
+##### Peers configuration
+
+On each device, the client configuration looks like this :
+
+```ini
+[Interface]
+PrivateKey = <peer private key>
+Address = 10.0.0.2/32
+DNS = 10.2.0.100
+MTU = 1420
+
+[Peer]
+PublicKey = <server public key>
+Endpoint = 192.168.0.17:51820
+# full tunnel : 0.0.0.0/1, 128.0.0.0/1 — split tunnel : 10.0.0.0/24
+AllowedIPs = 0.0.0.0/1, 128.0.0.0/1
+PersistentKeepalive = 25
+```
+
+> [!TIP]
+> A few things I learned the hard way about the peers configuration :
+>
+> - At home, use the **LAN IP address** of the server as endpoint (`192.168.0.17:51820`), not the public hostname : going through the public IP from inside the LAN
+    makes the router do **NAT loopback** (hairpin) in software, which cost me about half of the throughput (350/440 Mbit/s instead of 570/860).
+    Easiest is to keep two tunnels on the device : a "home" one with the LAN endpoint and an "away" one with the public hostname.
+> - At home, a **full tunnel** brings nothing : the traffic leaves through the same router anyway, it only adds encryption and relaying work for the server
+    (and costs about 40 % of the download speed, see [VPN connection speed](#vpn-connection-speed)).
+    Use a **split tunnel** (`AllowedIPs` limited to the VPN subnet, here `10.0.0.0/24`, which contains the DNS address so that the DNS still goes through the tunnel), or simply no tunnel at all
+    with the device DNS pointing to the Banana Pi : the ad blocking is done at DNS level, it is identical in all cases.
+> - `0.0.0.0/1, 128.0.0.0/1` also disables the **kill switch** and the **DNS leak protection** of the Windows client (only a `0.0.0.0/0` route enables them),
+    so Windows silently falls back to the router DNS if Pi-Hole does not answer within about a second.
+
 #### Pi-hole
 
 <img src="images/logo-pihole.svg" alt="Pi-Hole logo" height="128"/>
 
 The Compose file will run a **Pi-Hole** instance which need to be configured.
 
-First, we need to change **interface settings** to allow the traffic from other interfaces (especially for our VPN).
-By default, it allows only queries from local devices (from the same network as the Pi-Hole's network).
+First, Pi-Hole must accept the queries coming from other interfaces than its own Docker network (the VPN peers, the LAN) :
+by default it only answers "local" requests, and "local" for Pi-Hole is the Docker bridge network. The Compose file sets this once and for all with the
+`FTLCONF_dns_listeningMode: 'all'` environment variable (the equivalent of _Settings -> DNS -> Interface settings -> "Permit all origins"_ in the web UI).
 
-So, reach Pi-Hole at https://pihole.example.com and go to _Settings -> Interface settings_ and choose _"Permit all origins"_ instead of default _"Allow only local requests"_,
-so that the traffic from outside the Docker bridge network can be seen (indeed, "local" for Pi-Hole is the Docker bridge network,
-and thus it would allow only queries from inside that network).
+The web UI is reachable at https://pihole.example.com through **Traefik** : the Compose file does not carry Traefik labels anymore, the router is declared in a file of
+Traefik's **dynamic configuration** directory instead (see [Traefik routing](#traefik-routing) below), restricted to the local network and the VPN peers.
 
-Then we need to add **local DNS records** so that the domain names can be resolved from VPN or local network (remember we have routed all the traffic through Pi-Hole).
+> [!IMPORTANT]
+> Chicken and egg : the private services have **no public DNS record** (see [Domain and subdomains](#domain-and-subdomains)), so `pihole.example.com` can only be resolved
+> by Pi-Hole itself through a **local DNS record**... which is created in the web UI you cannot reach yet. Until it exists the browser gets `NXDOMAIN` (or, if a public record
+> for the name still exists, reaches Traefik through the NAT loopback of the router with the public IP as source and gets a `403`, see [IP whitelisting](#ip-whitelisting)).
+> Create the first record from the command line, it is applied immediately :
+>
+> ```bash
+> sudo docker exec pihole pihole-FTL --config dns.hosts '[ "192.168.0.17 pihole.example.com" ]'
+> sudo docker exec pihole nslookup pihole.example.com 127.0.0.1
+> ```
+>
+> Then make sure the device you use has Pi-Hole as DNS server (`192.168.0.17`, see [IP settings](#ip-settings)), flush its cache (`ipconfig /flushdns` on Windows) and restart the browser.
+> `--config dns.hosts` **replaces** the whole list : to add entries later from the command line, repeat the complete list, or simply use the web UI once it is reachable.
+
+In _Settings -> DNS_, untick every public upstream and add **Unbound** as custom upstream DNS server : `10.2.0.200#53`
+(its static address in the `pihole-net` Docker network, see [Services definition](#services-definition)).
+
+Then we need to add **local DNS records** so that the domain names can be resolved from VPN or local network (remember the DNS requests of the VPN peers and of the configured devices go through Pi-Hole).
 We simply need to associate domain names with the internal IP address of the Banana Pi, so they can be handled by the reverse proxy.
 
-Go to _local DNS -> DNS records_ and add a **DNS record entry** for every subdomain that should be available through VPN :
+Go to _Settings -> Local DNS Records_ (or repeat the `pihole-FTL --config dns.hosts` command above with the complete list) and add a **DNS record entry** for every subdomain that must only be reachable from the local network or through VPN :
 
 ```
 ackee.example.com                   192.168.0.17
+ccteam.example.com                  192.168.0.17
 dashboard.example.com               192.168.0.17
 dashdot.example.com                 192.168.0.17
 kuma.example.com                    192.168.0.17
+lychee.example.com                  192.168.0.17
 phpmyadmin.example.com              192.168.0.17
 pihole.example.com                  192.168.0.17
 portainer.example.com               192.168.0.17
+quake.example.com                   192.168.0.17
 traefik.example.com                 192.168.0.17
-wireguard-ui.example.com            192.168.0.17
 ```
 
-No need to add domains that are reachable from the internet as they will be reachable directly over HTTPS without going through our Pi-Hole.
+Add the **public** services as well (Lychee, Defrag-life, ...), even though they have a public DNS record. Without a local record, a device at home resolves them to the
+**public IP** and the traffic loops through the **NAT loopback** of the router : it costs about half of the throughput (measured in [VPN connection speed](#vpn-connection-speed)),
+and Traefik sees the requests coming from your public IP address instead of the device's one, so they are treated like internet traffic by the IP whitelist.
+With a local record, everything stays on the LAN.
+
+> [!NOTE]
+> Consequence for the VPN peers away from home : they use Pi-Hole through the tunnel, so these names resolve to `192.168.0.17` for them too, which is only reachable
+> with a **full tunnel** or with `192.168.0.0/24` added to `AllowedIPs`. Do that on the *away* profile only : on the *home* profile, routing the LAN subnet through the tunnel would send
+> the traffic to your printer or TV through the Banana Pi.
 
 You can also configure rate limiting (default to **1000 queries per minute**), domain whitelisting, DNS settings, etc. but I will not go through all Pi-Hole configuration, the
 default should work just fine.
@@ -1768,14 +1856,39 @@ A DNS leak test should now show your IP address as DNS server.
 > To remove the default forwarding to Cloudflare and make your unbound container a recursive-only server,
 > edit the _unbound.conf_ file and remove include of the _forward-records.conf_ file.
 
-Finally, if you want to activate **logging** for debugging purposes, edit the _/etc/unbound/unbound.conf_ configuration file :
+Then there are a few settings in _unbound.conf_ that are **essential** when Unbound runs in a container. I ran for months with a resolver that returned
+`SERVFAIL` for most names that were not already in cache (`login.live.com`, `www.apple.com`, the Twitch video servers, ...), cached names being served fine,
+which made streams randomly fail to start and Windows painfully slow at boot when the tunnel was up :
 
 ```
-verbosity: 1
-log-queries: yes
+server:
+    # the container has no IPv6 connectivity : without this, Unbound keeps trying the IPv6 addresses of the authoritative
+    # servers, burns its retry budget and ends up with SERVFAIL ("exceeded the maximum number of sends")
+    do-ip6: no
+    # 0x20 case randomization breaks with load balanced domains (Microsoft, Akamai, Twitch, ...) that answer differently
+    # on each query, Unbound then cannot validate its fallback ("0x20 failed, then got different replies in fallback")
+    use-caps-for-id: no
+    # 1 is plenty, 5 (debug) formats a huge amount of text for every single query, even when it ends up in /dev/null
+    verbosity: 1
+    # log the reason of each SERVFAIL to the container output (sudo docker logs unbound)
+    log-servfail: yes
+    logfile: ""
+    use-syslog: no
 ```
 
-But it's not recommended to increase verbosity for daily use, as Unbound logs a lot.
+A quick way to validate such changes without touching the running resolver is to start a **throwaway** Unbound with the modified file on the same Docker network,
+and to compare both on names that are not cached :
+
+```bash
+sudo docker run -d --name unbound-test --network wireguard_net -v /tmp/unbound-test.conf:/opt/unbound/etc/unbound/unbound.conf:ro mvance/unbound:latest
+dig @$(sudo docker inspect unbound-test --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}') login.live.com
+sudo docker logs unbound-test | grep SERVFAIL
+sudo docker rm -f unbound-test
+```
+
+With my original file 9 names out of 16 failed, with `do-ip6: no` alone all 16 succeeded, and `use-caps-for-id: no` on top made them faster.
+
+Do not enable `log-queries` for daily use, Unbound logs a lot.
 
 ### Configuration files details
 
@@ -2248,7 +2361,8 @@ from your local network holding your homelab (on the left), or from any other lo
   <th>From outside local network</th>
 </tr>
 <tr>
-<td width="480px">
+<td width="50%">
+<img src="images/1x480-transparent.png" width="480" height="1" alt="" />
 
 ```mermaid
 flowchart TB
@@ -2365,7 +2479,8 @@ flowchart TB
 ```
 
 </td>
-<td width="480px">
+<td width="50%">
+<img src="images/1x480-transparent.png" width="480" height="1" alt="" />
 
 ```mermaid
 flowchart TB
@@ -3318,6 +3433,181 @@ The application is available at https://dashdot.example.com.
 
 <img src="images/screen-dashdot.png" alt="Dashdot screenshot"/>
 
+## Lychee
+
+<img src="images/logo-lychee.png" alt="Lychee logo"/>
+
+**Lychee** is a photo management tool that allow to upload, manage and share photos.
+I pick this one out of all the others because it is quite simple, it doesn't have too many extras that I don't need.
+It also allows to directly use EXIF data to be used as title, etc. or to display a map.
+
+```mermaid
+flowchart LR
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style APP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_APP_PORT{{80/tcp}}
+    TRAEFIK_ROUTER_APP(lychee.example.com)
+    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph APP_CONTAINER[LYCHEE CONTAINER]
+                DOCKER_APP_PORT
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_APP
+                end
+
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
+                    TRAEFIK_MIDDLEWARE_REDIRECT
+                end
+
+                TRAEFIK_MIDDLEWARE_REDIRECT --> DOCKER_APP_PORT
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
+            end
+
+        end
+    end
+```
+
+No IP whitelisting here as this service will be open to the internet without restriction.
+
+### Setting up
+
+Create a folder to hold the configuration :
+
+```bash
+sudo mkdir /opt/apps/lychee
+```
+
+Then copy the _docker-compose.yml_ file from this project's _lychee_ directory into the _/opt/apps/lychee_ directory.
+
+### Details
+
+#### Service definition
+
+:page_facing_up: _docker-compose.yml_ :
+
+```yaml
+version: "3.7"
+
+services:
+
+  lychee:
+    image: lycheeorg/lychee
+    container_name: lychee
+    volumes:
+      - ./lychee/conf:/conf
+      - ./lychee/uploads:/uploads
+      - ./lychee/sym:/sym
+      - ./lychee/logs:/logs
+    environment:
+      - PHP_TZ=UTC
+      - TIMEZONE=UTC
+      - DB_CONNECTION=mysql
+      - DB_HOST=lychee-db
+      - DB_PORT=3306
+      - DB_DATABASE=lychee
+      - DB_USERNAME=lychee
+      - DB_PASSWORD=password
+      - STARTUP_DELAY=30
+      - ADMIN_USER=admin
+      - ADMIN_PASSWORD=password
+      - APP_URL=https://lychee.example.com
+      - TRUSTED_PROXIES=*
+    depends_on:
+      - lychee-db
+    restart: unless-stopped
+    networks:
+      - lychee-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lychee.rule=Host(`lychee.example.com`)"
+      - "traefik.http.routers.lychee.entrypoints=websecure"
+      - "traefik.http.routers.lychee.tls.certresolver=default"
+      - "traefik.http.services.lychee.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+
+  lychee-db:
+    container_name: lychee-db
+    image: arm64v8/mariadb:latest
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=lychee
+      - MYSQL_USER=lychee
+      - MYSQL_PASSWORD=password
+    volumes:
+      - lychee-db-vol:/var/lib/mysql
+    networks:
+      - lychee-net
+
+volumes:
+
+  lychee-db-vol:
+    name: lychee-db-vol
+
+networks:
+
+  lychee-net:
+    name: lychee-net
+
+  traefik-net:
+    name: traefik-net
+    external: true
+```
+
+Things to notice :
+
+- Lychee's MariaDB data is bound to a **Docker volume** named `lychee-db-vol` (data will be stored in _/var/lib/docker/volumes_)
+- We added some volumes, so we have access to some data locally, like uploaded images
+- We define some environment variables required by the application (like application admin credentials, database credentials, timezone, etc.)
+- It uses Traefik **labels** to :
+    - create a **service** which will point to our container application running on port `80`
+    - create an HTTP **router** that will match `lychee.example.com` URL on our `websecure` **entrypoint** to point to our service
+    - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+- It runs in its own **network** (`lychee-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
+
+### Run
+
+Finally, simply run the Compose file :
+
+```bash
+sudo docker-compose -f /opt/apps/lychee/docker-compose.yml up -d
+```
+
+You should end-up with 2 running containers :
+
+- `lychee` : The application
+- `lychee-db` : The MariaDB database
+
+It should also have generated the needed Let's Encrypt certificates in the _acme.json_ file in the Traefik folder.
+
+The application is available at https://lychee.example.com.
+
+> [!NOTE]
+> Lychee uses **EXIF** data of the photos files to display information like title or to display locations on a map,
+> so if you want clean galleries and accurate map, make sure to have the EXIF data completed correctly.
+
+<img src="images/screen-lychee.png" alt="Lychee homepage screenshot"/>
+
 ## Uptime-Kuma
 
 <img src="images/logo-uptime-kuma.svg" alt="Uptime Kuma logo" height="148"/>
@@ -3651,181 +3941,6 @@ Basically you need to :
 2. Add the script in the target pages (embed code will be provided by Ackee)
 
 For more advanced tracking (events, etc.) please refer to the documentation.
-
-## Lychee
-
-<img src="images/logo-lychee.png" alt="Lychee logo"/>
-
-**Lychee** is a photo management tool that allow to upload, manage and share photos.
-I pick this one out of all the others because it is quite simple, it doesn't have too many extras that I don't need.
-It also allows to directly use EXIF data to be used as title, etc. or to display a map.
-
-```mermaid
-flowchart LR
-    style INCOMING_REQUEST fill:#205566,color:#fff
-    style TRAEFIK_CONTAINER fill:#663535,color:#fff
-    style APP_CONTAINER fill:#663535,color:#fff
-    style TRAEFIK_ROUTER fill:#806030,color:#fff
-    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
-    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
-    style CONTAINER_ENGINE fill:#664545,color:#fff
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
-    DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_APP_PORT{{80/tcp}}
-    TRAEFIK_ROUTER_APP(lychee.example.com)
-    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
-    INCOMING_REQUEST((INCOMING<br/>REQUEST))
-    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
-    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
-
-    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
-        subgraph CONTAINER_ENGINE[DOCKER]
-            subgraph APP_CONTAINER[LYCHEE CONTAINER]
-                DOCKER_APP_PORT
-            end
-
-            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
-                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
-
-                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_APP
-                end
-
-                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
-                    TRAEFIK_MIDDLEWARE_REDIRECT
-                end
-
-                TRAEFIK_MIDDLEWARE_REDIRECT --> DOCKER_APP_PORT
-                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
-                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
-            end
-
-        end
-    end
-```
-
-No IP whitelisting here as this service will be open to the internet without restriction.
-
-### Setting up
-
-Create a folder to hold the configuration :
-
-```bash
-sudo mkdir /opt/apps/lychee
-```
-
-Then copy the _docker-compose.yml_ file from this project's _lychee_ directory into the _/opt/apps/lychee_ directory.
-
-### Details
-
-#### Service definition
-
-:page_facing_up: _docker-compose.yml_ :
-
-```yaml
-version: "3.7"
-
-services:
-
-  lychee:
-    image: lycheeorg/lychee
-    container_name: lychee
-    volumes:
-      - ./lychee/conf:/conf
-      - ./lychee/uploads:/uploads
-      - ./lychee/sym:/sym
-      - ./lychee/logs:/logs
-    environment:
-      - PHP_TZ=UTC
-      - TIMEZONE=UTC
-      - DB_CONNECTION=mysql
-      - DB_HOST=lychee-db
-      - DB_PORT=3306
-      - DB_DATABASE=lychee
-      - DB_USERNAME=lychee
-      - DB_PASSWORD=password
-      - STARTUP_DELAY=30
-      - ADMIN_USER=admin
-      - ADMIN_PASSWORD=password
-      - APP_URL=https://lychee.example.com
-      - TRUSTED_PROXIES=*
-    depends_on:
-      - lychee-db
-    restart: unless-stopped
-    networks:
-      - lychee-net
-      - traefik-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.lychee.rule=Host(`lychee.example.com`)"
-      - "traefik.http.routers.lychee.entrypoints=websecure"
-      - "traefik.http.routers.lychee.tls.certresolver=default"
-      - "traefik.http.services.lychee.loadbalancer.server.port=80"
-      - "traefik.docker.network=traefik-net"
-
-  lychee-db:
-    container_name: lychee-db
-    image: arm64v8/mariadb:latest
-    restart: unless-stopped
-    environment:
-      - MYSQL_ROOT_PASSWORD=password
-      - MYSQL_DATABASE=lychee
-      - MYSQL_USER=lychee
-      - MYSQL_PASSWORD=password
-    volumes:
-      - lychee-db-vol:/var/lib/mysql
-    networks:
-      - lychee-net
-
-volumes:
-
-  lychee-db-vol:
-    name: lychee-db-vol
-
-networks:
-
-  lychee-net:
-    name: lychee-net
-
-  traefik-net:
-    name: traefik-net
-    external: true
-```
-
-Things to notice :
-
-- Lychee's MariaDB data is bound to a **Docker volume** named `lychee-db-vol` (data will be stored in _/var/lib/docker/volumes_)
-- We added some volumes, so we have access to some data locally, like uploaded images
-- We define some environment variables required by the application (like application admin credentials, database credentials, timezone, etc.)
-- It uses Traefik **labels** to :
-    - create a **service** which will point to our container application running on port `80`
-    - create an HTTP **router** that will match `lychee.example.com` URL on our `websecure` **entrypoint** to point to our service
-    - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
-- It runs in its own **network** (`lychee-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
-
-### Run
-
-Finally, simply run the Compose file :
-
-```bash
-sudo docker-compose -f /opt/apps/lychee/docker-compose.yml up -d
-```
-
-You should end-up with 2 running containers :
-
-- `lychee` : The application
-- `lychee-db` : The MariaDB database
-
-It should also have generated the needed Let's Encrypt certificates in the _acme.json_ file in the Traefik folder.
-
-The application is available at https://lychee.example.com.
-
-> [!NOTE]
-> Lychee uses **EXIF** data of the photos files to display information like title or to display locations on a map,
-> so if you want clean galleries and accurate map, make sure to have the EXIF data completed correctly.
-
-<img src="images/screen-lychee.png" alt="Lychee homepage screenshot"/>
 
 ## Defrag-life
 
@@ -4577,7 +4692,7 @@ Later we can even place volume backups and database exports in the _/opt/apps_ d
 
 <img src="images/logo-rsync.png" alt="Rsync logo"/>
 
-The simplest way to back up the content of our N100 server is by using `rsync`.
+The simplest way to back up the content of our server is by using `rsync`.
 
 `rsync` (remote sync) is a utility for **transferring** and **synchronizing** files between a computer and a storage drive
 and across networked computers by comparing the modification times and sizes of files.
@@ -4587,13 +4702,13 @@ or any external drive connected to it) through a mount point.
 
 1. First, make sure to have a folder on the machine that will hold the backup (Windows in my case) that is shared and have enough storage for the server backup :
 
-    - Create a folder to hold the backup data (i.e. _E:\data\N100 backup_),
+    - Create a folder to hold the backup data (i.e. _E:\data\bpi backup_),
     - Right-click on the folder
     - Select _Properties > Sharing tab_
     - Click _Share..._ and choose the user with whom you want to share the folder (you can either use your default Windows user or create a specific user for that)
     - Assign the appropriate permissions (at least Read access).
     - Click Share, then Done.
-    - Take note of the network path of the share (i.e. \\DESKTOP-ABCDEF\N100 backup).
+    - Take note of the network path of the share (i.e. \\DESKTOP-ABCDEF\bpi backup).
 
 2. Secondly, mount the shared Windows folder on the server :
 
@@ -4612,12 +4727,12 @@ or any external drive connected to it) through a mount point.
    And mount the shared folder from the Windows machine to the server :
 
    ```bash
-   sudo mount -t cifs -o username=my_windows_user "//DESKTOP-ABCDEF/N100 backup" /mnt/windows
+   sudo mount -t cifs -o username=my_windows_user "//DESKTOP-ABCDEF/bpi backup" /mnt/windows
    ```
 
    Explanation:
     - `-t cifs`: Specifies that you’re using the **CIFS** protocol
-    - `//DESKTOP-ABCDEF/N100 backup`: The network path to the Windows share
+    - `//DESKTOP-ABCDEF/bpi backup`: The network path to the Windows share
     - `/mnt/windows`: The mount point on the server
 
    > [!NOTE]
