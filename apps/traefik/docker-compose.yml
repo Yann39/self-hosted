@@ -17,8 +17,7 @@ services:
       - ./credentials.txt:/credentials.txt:ro           # For Traefik dashboard credentials
     networks:
       - traefik-net
-    environment:
-      MYPROVIDER_ACCESS_TOKEN: <access_token_here>
+    env_file: .env
     labels:
       - "traefik.enable=true"
 

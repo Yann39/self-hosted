@@ -1066,6 +1066,7 @@ Then copy the files from this project's _traefik_ directory into the _/opt/apps/
 
 - _docker-compose.yml_ : The Traefik service definition
 - _traefik.yml_ : The Traefik static configuration
+- _.env_ : The secrets read by the service (DNS provider token), to fill in
 - _credentials.txt_ : A file that will hold users credentials to access the Traefik dashboard (restricted with **basic authentication**),
   see [Generate basic authentication credentials](#generate-basic-authentication-credentials)
 
@@ -1231,6 +1232,7 @@ This config file :
   that containers that do not have a `traefik.enable=true` label are ignored from the resulting routing configuration
 - defines a `default` **certificate resolver** for Let's Encrypt to automatically generate certificates
 - set log level to `info` (you can set it to `debug` when you need more information on what's going on)
+- declares the Traefik **plugins** used by the middlewares (Sablier), downloaded when Traefik starts
 
 #### Service definition :
 
@@ -1250,12 +1252,12 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock       # So that Traefik can listen to the Docker events
       - ./traefik.yml:/etc/traefik/config.yml           # Traefik configuration
+      - ./dynamic:/etc/traefik/dynamic:ro               # Traefik dynamic configuration
       - ./acme.json:/acme.json                          # For Let's Encrypt certificate storage
       - ./credentials.txt:/credentials.txt:ro           # For Traefik dashboard credentials
     networks:
       - traefik-net
-    environment:
-      MYPROVIDER_ACCESS_TOKEN: <access_token_here>
+    env_file: .env    # DNS provider token for the DNS challenge
     labels:
       - "traefik.enable=true"
 
@@ -1297,7 +1299,7 @@ This **Compose** file mainly :
 
 - exposes ports `80` and `443` to receive incoming HTTP/HTTPS requests
 - defines a `traefik-net` **network** (which will have to be shared with the services that will use Traefik)
-- defines an environment variable to hold the DNS provider access token to be able to issue Let's Encrypt certificates through **DNS challenge**
+- loads its secrets from the _.env_ file (see [Environment variables](#environment-variables-)) : the DNS provider access token used to issue Let's Encrypt certificates through **DNS challenge**
 - defines an HTTP **router** that will match `traefik.example.com` URL on our `websecure` **entrypoint** to point to our service
 - defines `httpsonly` **router** and **middleware** responsible for automatically redirecting HTTP requests to HTTPS
 - configures `dashboard` and `api` routers to use secure HTTPS endpoint with our certificate resolver to generate related Let's Encrypt certificates
@@ -1307,6 +1309,17 @@ This **Compose** file mainly :
 
 > [!CAUTION]
 > The order in which the middlewares are defined in relation to a router is important, they will be applied in the same order as their declaration.
+
+#### Environment variables :
+
+:page_facing_up: _.env_ :
+
+```shell
+# Access token / API key of your DNS provider, used by the Let's Encrypt DNS challenge (variable name depends on the provider, see Traefik documentation)
+MYPROVIDER_ACCESS_TOKEN=<access_token_here>
+```
+
+- `MYPROVIDER_ACCESS_TOKEN` is the token of your DNS provider, its name depends on the provider (see [DNS challenge](#dns-challenge))
 
 ### Run
 
