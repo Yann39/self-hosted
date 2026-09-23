@@ -2,8 +2,8 @@
 
 # Personal self-hosting guide
 
-![Static Badge](https://img.shields.io/badge/Version-1.2.1-2AAB92)
-![Static Badge](https://img.shields.io/badge/Last_update-22_Sept_2025-blue)
+![Static Badge](https://img.shields.io/badge/Version-1.3.0-2AAB92)
+![Static Badge](https://img.shields.io/badge/Last_update-18_Sept_2026-blue)
 ![Static Badge](https://img.shields.io/badge/Free_&_Open_source-GPL_V3-green)
 
 This project describes my personal **self-hosted** infrastructure setup, running on a **Banana Pi M5** board.
@@ -27,6 +27,13 @@ It uses only **free** and **open source** software and hardware.
   </tr>
 </table>
 
+> [!CAUTION]
+> I have since moved my home lab to a new mini PC instead of the Banana Pi.<br>
+I now maintain a dedicated repository similar to this one,
+at https://github.com/Yann39/self-hosted-n100, with more up-to-date information.<br>
+> I can potentially make a correction here in case of a bug or security issue,
+but it doesn't reflect my current setup anymore, unlike the previously mentioned repository.
+
 > [!IMPORTANT]
 > The content of this repository is provided "as is", with no guarantee that the information is complete or error-free.
 > The techniques and tools discussed here come with inherent risks.
@@ -38,7 +45,7 @@ It uses only **free** and **open source** software and hardware.
    <summary><a href="#overview">Overview</a></summary>
 
     1. [Plan](#plan)
-    2. [Architecture](#architecture)
+    2. [Target architecture](#target-architecture)
 
    </details>
 2. <details>
@@ -73,7 +80,7 @@ It uses only **free** and **open source** software and hardware.
     8. [Network flow](#network-flow)
 
    </details>
-5. <details>
+5. <details open>
    <summary><a href="#install-services">Install services</a></summary>
 
     1. [Portainer](#portainer)
@@ -128,23 +135,23 @@ I started this project in late 2023 as a **home lab**, for learning, the goal wa
 
 These are the tools we are going to run :
 
-|                                       Logo                                        | Name           | Repository                                  | Description                                          |
-|:---------------------------------------------------------------------------------:|----------------|---------------------------------------------|------------------------------------------------------|
-|         <img src="images/logo-docker.svg" alt="Docker logo" height="24"/>         | Docker         | https://github.com/docker                   | Help to build, share, and run container applications |
-| <img src="images/logo-docker-compose.png" alt="Docker Compose logo" height="38"/> | Docker Compose | https://github.com/docker/compose           | Run multi-container applications with Docker         |
-|      <img src="images/logo-portainer.svg" alt="Portainer logo" height="32"/>      | Portainer      | https://github.com/portainer/portainer      | Management platform for containerized applications   |
-|        <img src="images/logo-sablier.svg" alt="Sablier logo" height="32"/>        | Sablier        | https://github.com/sablierapp/sablier       | Workload scaling on demand                           |
-|        <img src="images/logo-traefik.svg" alt="Traefik logo" height="35"/>        | Traefik        | https://github.com/traefik/traefik          | Modern HTTP reverse proxy and load balancer          |
-|      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="30"/>      | Wireguard      | https://github.com/WireGuard                | Simple yet fast and modern VPN                       |
-|      <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="30"/>      | Wireguard UI   | https://github.com/ngoduykhanh/wireguard-ui | Web user interface to manage WireGuard setup         |
-|        <img src="images/logo-pihole.svg" alt="Pi-hole logo" height="34"/>         | Pi-hole        | https://github.com/pi-hole/pi-hole          | Network-wide ad blocking                             |
-|        <img src="images/logo-unbound.svg" alt="Unbound logo" height="32"/>        | Unbound        | https://github.com/NLnetLabs/unbound        | Validating, recursive, and caching DNS resolver      |
-|    <img src="images/logo-uptime-kuma.svg" alt="Uptime Kuma logo" height="34"/>    | Uptime Kuma    | https://github.com/louislam/uptime-kuma     | Easy-to-use self-hosted monitoring tool              |
-|          <img src="images/logo-homer.png" alt="Homer logo" height="30"/>          | Homer          | https://github.com/bastienwirtz/homer       | Static application dashboard                         |
-|        <img src="images/logo-dashdot.png" alt="Dashdot logo" height="32"/>        | Dashdot        | https://github.com/MauriceNino/dashdot      | Minimal server dashboard and monitoring              |
-|          <img src="images/logo-ackee.png" alt="Ackee logo" height="32"/>          | Ackee          | https://github.com/electerious/Ackee        | Analytics tool that cares about privacy              |
-|         <img src="images/logo-lychee.png" alt="Lychee logo" height="32"/>         | Lychee         | https://github.com/LycheeOrg/Lychee         | Free photo-management tool                           |
-|     <img src="images/logo-phpmyadmin.svg" alt="PhpMyAdmin logo" height="32"/>     | PhpMyAdmin     | https://github.com/phpmyadmin/phpmyadmin    | Web user interface to manage MySQL databases         |
+|                                        Logo                                         | Name            | Repository                                      | Description                                          |
+|:-----------------------------------------------------------------------------------:|-----------------|-------------------------------------------------|------------------------------------------------------|
+|          <img src="images/logo-docker.svg" alt="Docker logo" height="24"/>          | Docker          | https://github.com/docker                       | Help to build, share, and run container applications |
+|  <img src="images/logo-docker-compose.png" alt="Docker Compose logo" height="38"/>  | Docker Compose  | https://github.com/docker/compose               | Run multi-container applications with Docker         |
+|       <img src="images/logo-portainer.svg" alt="Portainer logo" height="32"/>       | Portainer       | https://github.com/portainer/portainer          | Management platform for containerized applications   |
+|         <img src="images/logo-traefik.svg" alt="Traefik logo" height="35"/>         | Traefik         | https://github.com/traefik/traefik              | Modern HTTP reverse proxy and load balancer          |
+|         <img src="images/logo-sablier.svg" alt="Sablier logo" height="32"/>         | Sablier         | https://github.com/sablierapp/sablier           | Workload scaling on demand                           |
+|       <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="30"/>       | Wireguard       | https://github.com/WireGuard                    | Simple yet fast and modern VPN                       |
+|       <img src="images/logo-wireguard.svg" alt="Wireguard logo" height="30"/>       | Wireguard UI    | https://github.com/ngoduykhanh/wireguard-ui     | Web user interface to manage WireGuard setup         |
+|         <img src="images/logo-pihole.svg" alt="Pi-hole logo" height="34"/>          | Pi-hole         | https://github.com/pi-hole/pi-hole              | Network-wide ad blocking                             |
+|         <img src="images/logo-unbound.svg" alt="Unbound logo" height="32"/>         | Unbound         | https://github.com/NLnetLabs/unbound            | Validating, recursive, and caching DNS resolver      |
+|     <img src="images/logo-uptime-kuma.svg" alt="Uptime Kuma logo" height="34"/>     | Uptime Kuma     | https://github.com/louislam/uptime-kuma         | Easy-to-use self-hosted monitoring tool              |
+|           <img src="images/logo-homer.png" alt="Homer logo" height="30"/>           | Homer           | https://github.com/bastienwirtz/homer           | Static application dashboard                         |
+|         <img src="images/logo-dashdot.png" alt="Dashdot logo" height="32"/>         | Dashdot         | https://github.com/MauriceNino/dashdot          | Minimal server dashboard and monitoring              |
+|           <img src="images/logo-ackee.png" alt="Ackee logo" height="32"/>           | Ackee           | https://github.com/electerious/Ackee            | Analytics tool that cares about privacy              |
+|          <img src="images/logo-lychee.png" alt="Lychee logo" height="32"/>          | Lychee          | https://github.com/LycheeOrg/Lychee             | Free photo-management tool                           |
+|      <img src="images/logo-phpmyadmin.svg" alt="PhpMyAdmin logo" height="32"/>      | PhpMyAdmin      | https://github.com/phpmyadmin/phpmyadmin        | Web user interface to manage MySQL databases         |
 
 And also some personal applications :
 
@@ -179,7 +186,7 @@ All of this runs on a single **Banana Pi M5 board** ! With the following specifi
 It should work on many other **ARM** boards such as the **Raspberry Pi**,
 and also on **x86**-based device by just using the right Docker image.
 
-## Architecture
+## Target architecture
 
 Here is a chart representing the global network "architecture" we are going to set up, simplified with only the most relevant services.
 See [Network flow](#network-flow) for more detailed schemas.
@@ -230,6 +237,7 @@ flowchart TB
     DOCKER_PIHOLE_DNS[DNS 1 & 2]
     PIHOLE_DNS_PIHOLE[pihole<br/>.example.com]
     PIHOLE_DNS_TRAEFIK[traefik<br/>.example.com]
+    PIHOLE_DNS_MYAPP[myapp\n.example.com]
 
     subgraph VPN_CLIENT[VPN CLIENT]
         WIREGUARD_CLIENT_ENDPOINT[Endpoint]
@@ -283,6 +291,7 @@ flowchart TB
                 subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
                     PIHOLE_DNS_TRAEFIK
                     PIHOLE_DNS_PIHOLE
+                    PIHOLE_DNS_MYAPP
                 end
                 DOCKER_PIHOLE_PORT53
                 DOCKER_PIHOLE_PORT80
@@ -306,17 +315,18 @@ flowchart TB
     end
 
     WIREGUARD_CLIENT_ENDPOINT ---> SUBDOMAIN_WIREGUARD
-    WIREGUARD_CLIENT_DNS -->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
+    WIREGUARD_CLIENT_DNS -->|Server tunnel address| DOCKER_PIHOLE_PORT53
     ROUTER_PORT51820 -->|port forward| DOCKER_WIREGUARD_PORT51820
     ROUTER_PORT443 ------>|port forward| DOCKER_TRAEFIK_PORT443
     ROUTER_PORT80 -->|port forward| DOCKER_TRAEFIK_PORT80
     DNS_ISP -->|Banana Pi M5 static IP| DOCKER_PIHOLE_PORT53
-    PIHOLE_DNS_TRAEFIK --->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
-    PIHOLE_DNS_PIHOLE --->|Banana Pi internal IP| DOCKER_TRAEFIK_PORT443
+    PIHOLE_DNS_MYAPP --->|Server internal IP| DOCKER_TRAEFIK_PORT443
+    PIHOLE_DNS_PIHOLE --->|Server internal IP| DOCKER_TRAEFIK_PORT443
+    PIHOLE_DNS_TRAEFIK --->|Server internal IP| DOCKER_TRAEFIK_PORT443
     DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
     DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
-    TRAEFIK_ROUTER_MYAPP --> REDIRECT
-    TRAEFIK_ROUTER_PIHOLE --> REDIRECT
+    TRAEFIK_ROUTER_MYAPP -->|Frontend| REDIRECT
+    TRAEFIK_ROUTER_PIHOLE -->|Dashboard| REDIRECT
     TRAEFIK_ROUTER_TRAEFIK -->|Dashboard / API| REDIRECT
     IP_WHITELISTING --> BASIC_AUTH
     IP_WHITELISTING --> DOCKER_PIHOLE_PORT80
@@ -995,7 +1005,7 @@ flowchart LR
     style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
     style CONTAINER_ENGINE fill:#664545,color:#fff
     INCOMING_REQUEST((INCOMING<br/>REQUEST))
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
     DOCKER_MYAPP1_PORT{{exposed port}}
@@ -2385,7 +2395,7 @@ flowchart TB
     ROUTER_PORT443{{443/tcp}}
     ROUTER_DNS[DNS]
     DOCKER_PIHOLE_PORT53{{53/udp}}
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_MYAPP_PORT{{port/tcp}}
     DOCKER_UNBOUND_PORT53{{53/udp}}
@@ -2502,7 +2512,7 @@ flowchart TB
     ROUTER_PORT80{{80/tcp}}
     ROUTER_PORT443{{443/tcp}}
     ROUTER2_DNS[DNS]
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_MYAPP_PORT{{port/tcp}}
     TRAEFIK_ROUTER_MYAPP(myapp.example.com)
@@ -2630,7 +2640,7 @@ flowchart TB
     WIREGUARD_PORT{{51820/tcp}}
     ROUTER_DNS[DNS 1]
     DOCKER_PIHOLE_PORT53{{53/udp}}
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_MYAPP_PORT{{port/tcp}}
     DOCKER_UNBOUND_PORT53{{53/udp}}
@@ -2702,7 +2712,7 @@ flowchart TB
 
     CLIENT((client)) --> VPN_CLIENT
     WIREGUARD_CLIENT_ENDPOINT --> SUBDOMAIN_WIREGUARD
-    WIREGUARD_CLIENT_DNS -->|Pi - Hole internal IP| DOCKER_PIHOLE_PORT53
+    WIREGUARD_CLIENT_DNS -->|Server tunnel address| DOCKER_PIHOLE_PORT53
     VPN_CLIENT -->|" http‎://myapp.example.com "| BROWSER
     BROWSER((browser)) --> ROUTER_PUBLIC_IP
     DOMAIN -->|subdomain| SUBDOMAIN_MYAPP
@@ -2778,7 +2788,7 @@ flowchart LR
     style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
     style CONTAINER_ENGINE fill:#664545,color:#fff
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{9000/tcp}}
     TRAEFIK_ROUTER_APP(portainer.example.com)
@@ -2919,7 +2929,7 @@ flowchart LR
     style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
     style CONTAINER_ENGINE fill:#664545,color:#fff
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{80/tcp}}
     TRAEFIK_ROUTER_APP(phpmyadmin.example.com)
@@ -3058,7 +3068,7 @@ flowchart LR
     style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
     style CONTAINER_ENGINE fill:#664545,color:#fff
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{8080/tcp}}
     TRAEFIK_ROUTER_APP(dashboard.example.com)
@@ -3318,7 +3328,7 @@ flowchart LR
     style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
     style CONTAINER_ENGINE fill:#664545,color:#fff
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{3001/tcp}}
     TRAEFIK_ROUTER_APP(dashdot.example.com)
@@ -3623,7 +3633,7 @@ flowchart LR
     style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
     style CONTAINER_ENGINE fill:#664545,color:#fff
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{3001/tcp}}
     TRAEFIK_ROUTER_APP(kuma.example.com)
@@ -3759,7 +3769,7 @@ flowchart LR
     style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
     style CONTAINER_ENGINE fill:#664545,color:#fff
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_APP_PORT{{3000/tcp}}
     TRAEFIK_ROUTER_APP(ackee.example.com)
@@ -3975,7 +3985,7 @@ flowchart LR
     style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     style SERVER_DEVICE fill:#665555,color:#fff
     style CONTAINER_ENGINE fill:#664545,color:#fff
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_NGINX_PORT{{80/tcp}}
     DOCKER_PHP_PORT{{9000/tcp}}
@@ -4526,7 +4536,7 @@ flowchart LR
     style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
     style SERVER_DEVICE fill:#665555,color:#fff
     style CONTAINER_ENGINE fill:#664545,color:#fff
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_SABLIER_PORT{{10000/tcp}}
     DOCKER_DASHDOT_PORT{{3001/tcp}}
