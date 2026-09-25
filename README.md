@@ -22,7 +22,11 @@ It uses only **free** and **open source** software and hardware.
       </picture>
     </td>
     <td>
-      <img src="images/logo-open-source-hardware.svg" alt="Open source hardware logo" height="128"/>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="images/logo-open-source-hardware.svg" height="128"/>
+        <source media="(prefers-color-scheme: light)" srcset="images/logo-open-source-hardware.svg" height="128"/>
+        <img alt="Open-source initiative logo" src="images/logo-open-source-hardware.svg" height="128"/>
+      </picture>
     </td>
   </tr>
 </table>
@@ -289,8 +293,8 @@ flowchart TB
 
             subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
                 subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
-                    PIHOLE_DNS_TRAEFIK
-                    PIHOLE_DNS_PIHOLE
+                    PIHOLE_DNS_TRAEFIK ~~~
+                    PIHOLE_DNS_PIHOLE ~~~
                     PIHOLE_DNS_MYAPP
                 end
                 DOCKER_PIHOLE_PORT53
@@ -908,10 +912,10 @@ So, let's create **subdomains** from the domain name registrar settings, for eve
 
 And add corresponding **CNAME records** to point to the dynamic DNS `myddns.ddns.net` :
 
-- `CNAME	wireguard	    myddns.ddns.net`
-- `CNAME	quake	        myddns.ddns.net`
-- `CNAME	lychee	        myddns.ddns.net`
-- `CNAME	ccteam	        myddns.ddns.net`
+- `CNAME    wireguard       myddns.ddns.net`
+- `CNAME    quake           myddns.ddns.net`
+- `CNAME    lychee          myddns.ddns.net`
+- `CNAME    ccteam          myddns.ddns.net`
 
 A **CNAME record** is just a records which points a name to another name instead of pointing to an IP address (like **A** records).
 
@@ -3443,181 +3447,6 @@ The application is available at https://dashdot.example.com.
 
 <img src="images/screen-dashdot.png" alt="Dashdot screenshot"/>
 
-## Lychee
-
-<img src="images/logo-lychee.png" alt="Lychee logo"/>
-
-**Lychee** is a photo management tool that allow to upload, manage and share photos.
-I pick this one out of all the others because it is quite simple, it doesn't have too many extras that I don't need.
-It also allows to directly use EXIF data to be used as title, etc. or to display a map.
-
-```mermaid
-flowchart LR
-    style INCOMING_REQUEST fill:#205566,color:#fff
-    style TRAEFIK_CONTAINER fill:#663535,color:#fff
-    style APP_CONTAINER fill:#663535,color:#fff
-    style TRAEFIK_ROUTER fill:#806030,color:#fff
-    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
-    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
-    style CONTAINER_ENGINE fill:#664545,color:#fff
-    DOCKER_TRAEFIK_PORT443{{443/tcp}}
-    DOCKER_TRAEFIK_PORT80{{80/tcp}}
-    DOCKER_APP_PORT{{80/tcp}}
-    TRAEFIK_ROUTER_APP(lychee.example.com)
-    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
-    INCOMING_REQUEST((INCOMING<br/>REQUEST))
-    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
-    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
-
-    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
-        subgraph CONTAINER_ENGINE[DOCKER]
-            subgraph APP_CONTAINER[LYCHEE CONTAINER]
-                DOCKER_APP_PORT
-            end
-
-            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
-                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
-                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
-
-                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
-                    TRAEFIK_ROUTER_APP
-                end
-
-                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
-                    TRAEFIK_MIDDLEWARE_REDIRECT
-                end
-
-                TRAEFIK_MIDDLEWARE_REDIRECT --> DOCKER_APP_PORT
-                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
-                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
-            end
-
-        end
-    end
-```
-
-No IP whitelisting here as this service will be open to the internet without restriction.
-
-### Setting up
-
-Create a folder to hold the configuration :
-
-```bash
-sudo mkdir /opt/apps/lychee
-```
-
-Then copy the _docker-compose.yml_ file from this project's _lychee_ directory into the _/opt/apps/lychee_ directory.
-
-### Details
-
-#### Service definition
-
-:page_facing_up: _docker-compose.yml_ :
-
-```yaml
-version: "3.7"
-
-services:
-
-  lychee:
-    image: lycheeorg/lychee
-    container_name: lychee
-    volumes:
-      - ./lychee/conf:/conf
-      - ./lychee/uploads:/uploads
-      - ./lychee/sym:/sym
-      - ./lychee/logs:/logs
-    environment:
-      - PHP_TZ=UTC
-      - TIMEZONE=UTC
-      - DB_CONNECTION=mysql
-      - DB_HOST=lychee-db
-      - DB_PORT=3306
-      - DB_DATABASE=lychee
-      - DB_USERNAME=lychee
-      - DB_PASSWORD=password
-      - STARTUP_DELAY=30
-      - ADMIN_USER=admin
-      - ADMIN_PASSWORD=password
-      - APP_URL=https://lychee.example.com
-      - TRUSTED_PROXIES=*
-    depends_on:
-      - lychee-db
-    restart: unless-stopped
-    networks:
-      - lychee-net
-      - traefik-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.lychee.rule=Host(`lychee.example.com`)"
-      - "traefik.http.routers.lychee.entrypoints=websecure"
-      - "traefik.http.routers.lychee.tls.certresolver=default"
-      - "traefik.http.services.lychee.loadbalancer.server.port=80"
-      - "traefik.docker.network=traefik-net"
-
-  lychee-db:
-    container_name: lychee-db
-    image: arm64v8/mariadb:latest
-    restart: unless-stopped
-    environment:
-      - MYSQL_ROOT_PASSWORD=password
-      - MYSQL_DATABASE=lychee
-      - MYSQL_USER=lychee
-      - MYSQL_PASSWORD=password
-    volumes:
-      - lychee-db-vol:/var/lib/mysql
-    networks:
-      - lychee-net
-
-volumes:
-
-  lychee-db-vol:
-    name: lychee-db-vol
-
-networks:
-
-  lychee-net:
-    name: lychee-net
-
-  traefik-net:
-    name: traefik-net
-    external: true
-```
-
-Things to notice :
-
-- Lychee's MariaDB data is bound to a **Docker volume** named `lychee-db-vol` (data will be stored in _/var/lib/docker/volumes_)
-- We added some volumes, so we have access to some data locally, like uploaded images
-- We define some environment variables required by the application (like application admin credentials, database credentials, timezone, etc.)
-- It uses Traefik **labels** to :
-    - create a **service** which will point to our container application running on port `80`
-    - create an HTTP **router** that will match `lychee.example.com` URL on our `websecure` **entrypoint** to point to our service
-    - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
-- It runs in its own **network** (`lychee-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
-
-### Run
-
-Finally, simply run the Compose file :
-
-```bash
-sudo docker-compose -f /opt/apps/lychee/docker-compose.yml up -d
-```
-
-You should end-up with 2 running containers :
-
-- `lychee` : The application
-- `lychee-db` : The MariaDB database
-
-It should also have generated the needed Let's Encrypt certificates in the _acme.json_ file in the Traefik folder.
-
-The application is available at https://lychee.example.com.
-
-> [!NOTE]
-> Lychee uses **EXIF** data of the photos files to display information like title or to display locations on a map,
-> so if you want clean galleries and accurate map, make sure to have the EXIF data completed correctly.
-
-<img src="images/screen-lychee.png" alt="Lychee homepage screenshot"/>
-
 ## Uptime-Kuma
 
 <img src="images/logo-uptime-kuma.svg" alt="Uptime Kuma logo" height="148"/>
@@ -3951,6 +3780,181 @@ Basically you need to :
 2. Add the script in the target pages (embed code will be provided by Ackee)
 
 For more advanced tracking (events, etc.) please refer to the documentation.
+
+## Lychee
+
+<img src="images/logo-lychee.png" alt="Lychee logo"/>
+
+**Lychee** is a photo management tool that allow to upload, manage and share photos.
+I pick this one out of all the others because it is quite simple, it doesn't have too many extras that I don't need.
+It also allows to directly use EXIF data to be used as title, etc. or to display a map.
+
+```mermaid
+flowchart LR
+    style INCOMING_REQUEST fill:#205566,color:#fff
+    style TRAEFIK_CONTAINER fill:#663535,color:#fff
+    style APP_CONTAINER fill:#663535,color:#fff
+    style TRAEFIK_ROUTER fill:#806030,color:#fff
+    style TRAEFIK_MIDDLEWARE fill:#806030,color:#fff
+    style SINGLE_BOARD_COMPUTER fill:#665555,color:#fff
+    style CONTAINER_ENGINE fill:#664545,color:#fff
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
+    DOCKER_TRAEFIK_PORT80{{80/tcp}}
+    DOCKER_APP_PORT{{80/tcp}}
+    TRAEFIK_ROUTER_APP(lychee.example.com)
+    TRAEFIK_MIDDLEWARE_REDIRECT(HTTPS redirect)
+    INCOMING_REQUEST((INCOMING<br/>REQUEST))
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT443
+    INCOMING_REQUEST --> DOCKER_TRAEFIK_PORT80
+
+    subgraph SINGLE_BOARD_COMPUTER[BANANA PI M5]
+        subgraph CONTAINER_ENGINE[DOCKER]
+            subgraph APP_CONTAINER[LYCHEE CONTAINER]
+                DOCKER_APP_PORT
+            end
+
+            subgraph TRAEFIK_CONTAINER[TRAEFIK CONTAINER]
+                DOCKER_TRAEFIK_PORT443 --> TRAEFIK_ROUTER
+                DOCKER_TRAEFIK_PORT80 --> TRAEFIK_ROUTER
+
+                subgraph TRAEFIK_ROUTER[TRAEFIK HTTP ROUTER]
+                    TRAEFIK_ROUTER_APP
+                end
+
+                subgraph TRAEFIK_MIDDLEWARE[TRAEFIK MIDDLEWARES]
+                    TRAEFIK_MIDDLEWARE_REDIRECT
+                end
+
+                TRAEFIK_MIDDLEWARE_REDIRECT --> DOCKER_APP_PORT
+                TRAEFIK_MIDDLEWARE_REDIRECT -.-> DOCKER_TRAEFIK_PORT443
+                TRAEFIK_ROUTER_APP --> TRAEFIK_MIDDLEWARE_REDIRECT
+            end
+
+        end
+    end
+```
+
+No IP whitelisting here as this service will be open to the internet without restriction.
+
+### Setting up
+
+Create a folder to hold the configuration :
+
+```bash
+sudo mkdir /opt/apps/lychee
+```
+
+Then copy the _docker-compose.yml_ file from this project's _lychee_ directory into the _/opt/apps/lychee_ directory.
+
+### Details
+
+#### Service definition
+
+:page_facing_up: _docker-compose.yml_ :
+
+```yaml
+version: "3.7"
+
+services:
+
+  lychee:
+    image: lycheeorg/lychee
+    container_name: lychee
+    volumes:
+      - ./lychee/conf:/conf
+      - ./lychee/uploads:/uploads
+      - ./lychee/sym:/sym
+      - ./lychee/logs:/logs
+    environment:
+      - PHP_TZ=UTC
+      - TIMEZONE=UTC
+      - DB_CONNECTION=mysql
+      - DB_HOST=lychee-db
+      - DB_PORT=3306
+      - DB_DATABASE=lychee
+      - DB_USERNAME=lychee
+      - DB_PASSWORD=password
+      - STARTUP_DELAY=30
+      - ADMIN_USER=admin
+      - ADMIN_PASSWORD=password
+      - APP_URL=https://lychee.example.com
+      - TRUSTED_PROXIES=*
+    depends_on:
+      - lychee-db
+    restart: unless-stopped
+    networks:
+      - lychee-net
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lychee.rule=Host(`lychee.example.com`)"
+      - "traefik.http.routers.lychee.entrypoints=websecure"
+      - "traefik.http.routers.lychee.tls.certresolver=default"
+      - "traefik.http.services.lychee.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+
+  lychee-db:
+    container_name: lychee-db
+    image: arm64v8/mariadb:latest
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=lychee
+      - MYSQL_USER=lychee
+      - MYSQL_PASSWORD=password
+    volumes:
+      - lychee-db-vol:/var/lib/mysql
+    networks:
+      - lychee-net
+
+volumes:
+
+  lychee-db-vol:
+    name: lychee-db-vol
+
+networks:
+
+  lychee-net:
+    name: lychee-net
+
+  traefik-net:
+    name: traefik-net
+    external: true
+```
+
+Things to notice :
+
+- Lychee's MariaDB data is bound to a **Docker volume** named `lychee-db-vol` (data will be stored in _/var/lib/docker/volumes_)
+- We added some volumes, so we have access to some data locally, like uploaded images
+- We define some environment variables required by the application (like application admin credentials, database credentials, timezone, etc.)
+- It uses Traefik **labels** to :
+    - create a **service** which will point to our container application running on port `80`
+    - create an HTTP **router** that will match `lychee.example.com` URL on our `websecure` **entrypoint** to point to our service
+    - add a **TLS** configuration that will use our `default` **certificates resolver**, so it can generate Let's encrypt certificates
+- It runs in its own **network** (`lychee-net`) but must also share the same network as Traefik (`traefik-net`) so it can be auto discovered
+
+### Run
+
+Finally, simply run the Compose file :
+
+```bash
+sudo docker-compose -f /opt/apps/lychee/docker-compose.yml up -d
+```
+
+You should end-up with 2 running containers :
+
+- `lychee` : The application
+- `lychee-db` : The MariaDB database
+
+It should also have generated the needed Let's Encrypt certificates in the _acme.json_ file in the Traefik folder.
+
+The application is available at https://lychee.example.com.
+
+> [!NOTE]
+> Lychee uses **EXIF** data of the photos files to display information like title or to display locations on a map,
+> so if you want clean galleries and accurate map, make sure to have the EXIF data completed correctly.
+
+<img src="images/screen-lychee.png" alt="Lychee homepage screenshot"/>
 
 ## Defrag-life
 
