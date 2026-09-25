@@ -632,7 +632,7 @@ sudo docker version
 > You can use https://get.docker.com/rootless to install it in rootless mode (run the Docker daemon as a non-root user)
 > to mitigate potential vulnerabilities in the daemon and the container runtime.
 
-Then also install **Docker-Compose**, so we can define and run multi-container Docker applications :
+Then also install **Docker Compose**, so we can define and run multi-container Docker applications :
 
 ```shell
 sudo apt install docker-compose -y
@@ -4154,6 +4154,8 @@ The application will be available at https://quake.example.com.
 <img src="images/screen-defrag-life.png" alt="Defrag-Life website screenshot"/>
 
 ## CCTeam
+
+<img src="images/logo-ccteam.svg" alt="CCTeam logo" height="100"/>
 
 Create a directory to hold the app :
 
