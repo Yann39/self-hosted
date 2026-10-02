@@ -2,9 +2,11 @@
 
 # Personal self-hosting guide
 
-![Static Badge](https://img.shields.io/badge/Version-1.3.0-2AAB92)
-![Static Badge](https://img.shields.io/badge/Last_update-18_Sept_2026-blue)
-![Static Badge](https://img.shields.io/badge/Free_&_Open_source-GPL_V3-green)
+![Version](https://img.shields.io/badge/Version-1.3.0-2AAB92)
+![Last update](https://img.shields.io/badge/Last_update-18_Sept_2026-blue)
+![License](https://img.shields.io/badge/Free_&_Open_source-GPL_V3-green)
+
+![State](https://img.shields.io/badge/Discontinued_—_Moved_to_new_repo-red)
 
 This project describes my personal **self-hosted** infrastructure setup, running on a **Banana Pi M5** board.
 
@@ -35,7 +37,7 @@ It uses only **free** and **open source** software and hardware.
 > I have since moved my home lab to a new mini PC instead of the Banana Pi.<br>
 I now maintain a dedicated repository similar to this one,
 at https://github.com/Yann39/self-hosted-n100, with more up-to-date information.<br>
-> I can potentially make a correction here in case of a bug or security issue,
+> I can potentially make a correction here in case of a serious bug or security issue,
 but it doesn't reflect my current setup anymore, unlike the previously mentioned repository.
 
 > [!IMPORTANT]
@@ -228,7 +230,7 @@ flowchart TB
     DOCKER_MYAPP_PORT5000{{5000/tcp}}
     DOCKER_PIHOLE_PORT80{{80/tcp}}
     DOCKER_PIHOLE_PORT53{{53/udp}}
-    DOCKER_TRAEFIK_PORT443{{433/tcp}}
+    DOCKER_TRAEFIK_PORT443{{443/tcp}}
     DOCKER_TRAEFIK_PORT80{{80/tcp}}
     DOCKER_TRAEFIK_PORT8080{{8080/tcp}}
     DOCKER_UNBOUND_PORT53{{53/udp}}
@@ -293,9 +295,7 @@ flowchart TB
 
             subgraph PIHOLE_CONTAINER[PIHOLE CONTAINER]
                 subgraph PIHOLE_DNS_RECORDS[LOCAL DNS RECORDS]
-                    PIHOLE_DNS_TRAEFIK ~~~
-                    PIHOLE_DNS_PIHOLE ~~~
-                    PIHOLE_DNS_MYAPP
+                    PIHOLE_DNS_TRAEFIK ~~~ PIHOLE_DNS_PIHOLE ~~~ PIHOLE_DNS_MYAPP
                 end
                 DOCKER_PIHOLE_PORT53
                 DOCKER_PIHOLE_PORT80
@@ -692,7 +692,7 @@ The idea is to have :
 - A main **domain** name
 - A **subdomain** name for each application that must be reachable from the internet
 - A **dynamic DNS** name to avoid having to use a **static** public IP address
-- A **Traefik** reverse proxy to handle HTTP request that will be port forwarded to the applications
+- A **reverse proxy** to handle HTTP request that will be port forwarded to the applications
 
 For services that will not be accessible to the internet, we will use **Pi-Hole**’s ability to manage **local DNS records**
 (each record will point to Banana Pi's internal IP address) so that they are also reachable using a subdomain name.
@@ -731,7 +731,7 @@ flowchart LR
     end
 
     subgraph SINGLE_BOARD_COMPUTER[BANANA PI]
-        subgraph TRAEFIK_CONTAINER[TRAEFIK]
+        subgraph TRAEFIK_CONTAINER[REVERSE PROXY]
             DOCKER_TRAEFIK_PORT
         end
 
@@ -778,7 +778,7 @@ flowchart LR
             PIHOLE_DNS_MYAPP
         end
 
-        subgraph TRAEFIK_CONTAINER[TRAEFIK]
+        subgraph TRAEFIK_CONTAINER[REVERSE PROXY]
             DOCKER_TRAEFIK_PORT
         end
 
@@ -824,7 +824,7 @@ flowchart LR
             PIHOLE_DNS_MYAPP
         end
 
-        subgraph TRAEFIK_CONTAINER[TRAEFIK]
+        subgraph TRAEFIK_CONTAINER[REVERSE PROXY]
             DOCKER_TRAEFIK_PORT
         end
 
