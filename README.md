@@ -6,7 +6,7 @@
 ![Last update](https://img.shields.io/badge/Last_update-18_Sept_2026-blue)
 ![License](https://img.shields.io/badge/Free_&_Open_source-GPL_V3-green)
 
-![State](https://img.shields.io/badge/Discontinued_—_Moved_to_new_repo-red)
+[![State](https://img.shields.io/badge/Discontinued_—_Moved_to_new_repo-red)](https://github.com/Yann39/self-hosted-n100)
 
 This project describes my personal **self-hosted** infrastructure setup, running on a **Banana Pi M5** board.
 
